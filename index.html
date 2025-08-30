@@ -32,7 +32,9 @@
 
   <script>
     const LIFF_ID = "2007979122-nWPjgJGA";
-    const API_URL = "https://script.google.com/macros/s/AKfycbxl9r9IHTHFfrq1nEUkRqkpbUMrcKJTb0N2lTaSONVSBwGazhIvPlnvuWeSrJ-62nkG/exec"; // 例: https://script.google.com/macros/s/XXXX/exec
+    const API_BASE = `${location.origin}/api`;
+    const API_AVAILABLE = `${API_BASE}/available`;
+    const API_BOOK = `${API_BASE}/book`;
 
     let lineUserId = null;
     let displayName = "";
@@ -60,7 +62,7 @@
 
     async function renderSlots() {
       try {
-        const res = await fetch(`${API_URL}?path=available`);
+        const res = await fetch(API_AVAILABLE);
         const data = await res.json();
         const wrap = document.getElementById("slots");
         wrap.innerHTML = "<h3>空いている時間</h3>";
@@ -88,7 +90,7 @@
 
     async function book(startIso) {
       try {
-        const res = await fetch(API_URL, {
+        const res = await fetch(API_BOOK, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
