@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>無料相談 予約</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif; padding: 16px; }
+    .slot { display:block; width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:12px; }
+    .muted { color: #555; font-size: 13px;}
+    .hidden { display: none; }
+    button.primary { padding:12px 16px; border-radius:12px; border:0; }
+  </style>
+</head>
+<body>
+  <h2>無料相談の予約</h2>
+  <div class="muted">LINEの表示名は自動で入ります。日付/時間を選ぶだけ！</div>
+
+  <div style="margin:12px 0">
+    <label>お名前</label><br />
+    <input id="name" type="text" readonly />
+  </div>
+
+  <div id="slots"></div>
+
+  <div id="manual" class="hidden" style="margin-top:16px">
+    <label>手動で日時指定</label><br/>
+    <input id="dt" type="datetime-local" />
+    <button id="submitManual" class="primary" style="margin-left:8px">この日時で予約</button>
+  </div>
+
+  <script>
+    const LIFF_ID = "YOUR_LIFF_ID";
+    const API_URL = "YOUR_GAS_WEBAPP_URL"; // 例: https://script.google.com/macros/s/XXXX/exec
+
+    let lineUserId = null;
+    let displayName = "";
+
+    (async () => {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+
+      const prof = await liff.getProfile();
+      displayName = prof.displayName || "";
+      lineUserId = prof.userId || null; // 取れない場合は getIDToken→サーバ検証に切替
+
+      document.getElementById("name").value = displayName;
+
+      // 空き枠を取得してボタン化
+      await renderSlots();
+
+      // 手動予約（必要な時だけ使う）
+      document.getElementById("submitManual").addEventListener("click", () => {
+        const dt = document.getElementById("dt").value;
+        if (!dt) return alert("日時を選んでください");
+        book(new Date(dt).toISOString());
+      });
+    })();
+
+    async function renderSlots() {
+      try {
+        const res = await fetch(`${API_URL}?path=available`);
+        const data = await res.json();
+        const wrap = document.getElementById("slots");
+        wrap.innerHTML = "<h3>空いている時間</h3>";
+
+        if (!data.slots || data.slots.length === 0) {
+          wrap.insertAdjacentHTML('beforeend', `<div class="muted">直近の空きがありません。手動で選択できます。</div>`);
+          document.getElementById("manual").classList.remove("hidden");
+          return;
+        }
+
+        data.slots.forEach(slot => {
+          const btn = document.createElement("button");
+          btn.className = "slot";
+          btn.textContent = slot.label;
+          btn.addEventListener("click", () => book(slot.startIso));
+          wrap.appendChild(btn);
+        });
+
+        // 手動入力も出したい場合は下の行のコメント解除
+        // document.getElementById("manual").classList.remove("hidden");
+      } catch (e) {
+        alert("空き枠の取得に失敗しました。時間をおいて再度お試しください。");
+      }
+    }
+
+    async function book(startIso) {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "book",
+            startIso,
+            name: displayName,
+            lineUserId
+          }),
+        });
+        const json = await res.json();
+        if (json.ok) {
+          alert("予約を受け付けました。LINEにも確認メッセージを送ります。");
+          if (liff.isInClient()) liff.closeWindow();
+        } else {
+          alert("その枠は埋まっています。別の時間をお選びください。");
+        }
+      } catch (e) {
+        alert("通信エラー。少し待ってから再度お試しください。");
+      }
+    }
+  </script>
+</body>
+</html>
