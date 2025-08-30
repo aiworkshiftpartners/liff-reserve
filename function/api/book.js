@@ -9,7 +9,11 @@ const CORS = {
 
 export async function onRequestPost({ request }) {
   const body = await request.text();
-  const upstream = await fetch(GAS_BASE, { method: "POST", headers: { "content-type": "application/json" }, body });
+  const upstream = await fetch(GAS_BASE, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  });
   const text = await upstream.text();
   const ct = upstream.headers.get("content-type") || "application/json";
   return new Response(text, { status: upstream.status, headers: { ...CORS, "content-type": ct } });
