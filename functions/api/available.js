@@ -1,5 +1,4 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbypz2p9RnwfTgW-1GD9cUocNa6Bzz5H6ZIwC6y2Q318DcdN8RM-1WkxsNkRoZBOu945/exec";
-
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbzvWkRatzZlsnuHS_2_P7CjkvDH9gC1kFTwq2iaomJZG5HKYR37zTqJ1towGktlHP-H/exec"; // 例: https://script.google.com/macros/s/AKfycb.../exec
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
@@ -8,12 +7,16 @@ const CORS = {
 };
 
 export async function onRequestGet() {
-  const upstream = await fetch(`${GAS_BASE}?path=available`);
+  const upstream = await fetch(`${GAS_BASE}?path=available`, { headers:{ accept:"application/json" } });
   const text = await upstream.text();
-  const ct = upstream.headers.get("content-type") || "application/json";
-  return new Response(text, { status: upstream.status, headers: { ...CORS, "content-type": ct } });
+  // JSON検証（upstreamがHTMLでも落とさない）
+  try {
+    const json = JSON.parse(text);
+    return new Response(JSON.stringify(json), { headers: { ...CORS, "content-type": "application/json" } });
+  } catch {
+    return new Response(JSON.stringify({ ok:false, error:"bad_upstream", raw:text.slice(0,500) }), {
+      status: 502, headers: { ...CORS, "content-type": "application/json" }
+    });
+  }
 }
-
-export async function onRequestOptions() {
-  return new Response(null, { headers: CORS });
-}
+export async function onRequestOptions(){ return new Response(null, { headers: CORS }); }

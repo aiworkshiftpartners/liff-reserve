@@ -1,5 +1,4 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbypz2p9RnwfTgW-1GD9cUocNa6Bzz5H6ZIwC6y2Q318DcdN8RM-1WkxsNkRoZBOu945/exec";
-
+const GAS_BASE = "Yhttps://script.google.com/macros/s/AKfycbzvWkRatzZlsnuHS_2_P7CjkvDH9gC1kFTwq2iaomJZG5HKYR37zTqJ1towGktlHP-H/exec"; // 例: https://script.google.com/macros/s/AKfycb.../exec
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
@@ -9,16 +8,8 @@ const CORS = {
 
 export async function onRequestPost({ request }) {
   const body = await request.text();
-  const upstream = await fetch(GAS_BASE, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-  });
+  const upstream = await fetch(GAS_BASE, { method: "POST", headers:{ "content-type":"application/json" }, body });
   const text = await upstream.text();
-  const ct = upstream.headers.get("content-type") || "application/json";
-  return new Response(text, { status: upstream.status, headers: { ...CORS, "content-type": ct } });
+  return new Response(text, { status: upstream.status, headers: { ...CORS, "content-type": "application/json" } });
 }
-
-export async function onRequestOptions() {
-  return new Response(null, { headers: CORS });
-}
+export async function onRequestOptions(){ return new Response(null, { headers: CORS }); }
