@@ -5,29 +5,65 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>無料相談 予約</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif; padding: 16px; }
-    .slot { display:block; width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:12px; }
-    .muted { color: #555; font-size: 13px;}
-    .hidden { display: none; }
-    button.primary { padding:12px 16px; border-radius:12px; border:0; }
-  </style>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111;line-height:1.8}
+  .wrap{min-height:100%;display:grid;place-items:start center;padding:24px}
+  .card{width:100%;max-width:560px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px 24px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  h1{margin:0 0 14px;font-weight:800;font-size:clamp(26px,6vw,36px)}
+  .help{font-size:13px;color:#666;margin:0 0 18px}
+
+  label{display:block;margin:18px 0 6px;font-weight:600}
+  .field{width:100%;padding:14px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;background:#fff}
+  .field:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+
+  /* 予約ボタン（枠） */
+  .slot{display:block;width:100%;padding:14px 16px;margin:8px 0;border:1px solid #e5e7eb;border-radius:12px;background:#fff;
+        text-align:left;font-size:16px;cursor:pointer;transition:transform .02s ease, box-shadow .2s ease, border-color .2s}
+  .slot:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .slot:active{transform:translateY(1px)}
+  .slot:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+
+  /* 実行ボタン */
+  .btn{width:100%;padding:14px;margin-top:22px;border:none;border-radius:10px;background:#1a2e44;color:#fff;font-size:16px;font-weight:800;cursor:pointer}
+  .btn[disabled]{opacity:.55;cursor:not-allowed}
+
+  /* エラースタイル（流用できるように残しておく） */
+  .error{border-color:#ef4444 !important; box-shadow:0 0 0 2px rgba(239,68,68,.3) !important;}
+  .error-msg{color:#ef4444;font-size:13px;margin:4px 0 0}
+
+  /* 補助：余白や区切り */
+  .section{margin-top:16px}
+  .divider{height:1px;background:#eee;margin:16px 0}
+</style>
 </head>
 <body>
-  <h2>無料相談の予約</h2>
-  <div class="muted">LINEの表示名は自動で入ります。日付/時間を選ぶだけ！</div>
+   <div class="wrap">
+    <div class="card">
+      <h1>無料相談の予約</h1>
+      <p class="help">LINEの表示名は自動入力されます。<strong>日付/時間を選ぶだけ</strong>で予約できます。</p>
 
-  <div style="margin:12px 0">
-    <label>お名前</label><br />
-    <input id="name" type="text" readonly />
-  </div>
+      <!-- ここから既存のUI（idは同じまま） -->
+      <div class="section">
+        <label>お名前</label>
+        <input id="name" type="text" class="field" readonly />
+      </div>
 
-  <div id="slots"></div>
+      <div class="divider"></div>
 
-  <div id="manual" class="hidden" style="margin-top:16px">
-    <label>手動で日時指定</label><br/>
-    <input id="dt" type="datetime-local" />
-    <button id="submitManual" class="primary" style="margin-left:8px">この日時で予約</button>
+      <div id="slots" class="section"><!-- JSで枠ボタンが入る --></div>
+
+      <div id="manual" class="hidden section">
+        <label>手動で日時指定</label>
+        <div style="display:flex; gap:8px; align-items:center">
+          <input id="dt" type="datetime-local" class="field" style="flex:1" />
+          <button id="submitManual" class="btn" style="width:auto; margin-top:0">この日時で予約</button>
+        </div>
+        <p class="help" style="margin-top:8px">※空きがない場合や特別な時間帯の希望に。</p>
+      </div>
+      <!-- ここまで既存UI -->
+    </div>
   </div>
 
   <script>
