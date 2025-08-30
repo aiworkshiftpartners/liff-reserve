@@ -9,46 +9,61 @@
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
     body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111;line-height:1.8}
-    .wrap{min-height:100%;display:grid;place-items:start center;padding:24px}
-    .card{width:100%;max-width:560px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px 24px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
-    h1{margin:0 0 14px;font-weight:800;font-size:clamp(26px,6vw,36px)}
-    .help{font-size:13px;color:#666;margin:0 0 18px}
-    label{display:block;margin:18px 0 6px;font-weight:600}
-    .field{width:100%;padding:14px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;background:#fff}
-    .field:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
-    .weekbar{display:flex;align-items:center;justify-content:space-between;margin:10px 0 4px}
+    .wrap{min-height:100%;display:grid;place-items:start center;padding:20px}
+    .card{width:100%;max-width:760px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 16px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+    h1{margin:0 0 6px;font-weight:800;font-size:clamp(22px,4.5vw,28px)}
+    .help{font-size:12px;color:#666;margin:0 0 12px}
+
+    .field{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#fff;margin:6px 0 12px}
+    .field[readonly]{background:#fafafa}
+
+    /* week nav */
+    .weekbar{display:flex;align-items:center;gap:8px;justify-content:center;margin:6px 0 10px}
     .weekbtn{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+    .weekbtn[disabled]{opacity:.5;cursor:not-allowed}
     .weektitle{font-weight:700}
-    .dayhdr{margin:14px 0 6px;color:#444;font-size:14px}
-    .slot{display:block;width:100%;padding:14px 16px;margin:8px 0;border:1px solid #e5e7eb;border-radius:12px;background:#fff;
-          text-align:left;font-size:16px;cursor:pointer;transition:transform .02s ease, box-shadow .2s ease, border-color .2s}
-    .slot:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
-    .slot:active{transform:translateY(1px)}
-    .slot:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
-    .slot.selected{border-color:#1a2e44; box-shadow:0 0 0 3px rgba(26,46,68,.15)}
-    .confirmbar{margin-top:16px}
-    #confirmBtn{width:100%; padding:14px; border:none; border-radius:10px; background:#1a2e44; color:#fff; font-size:16px; font-weight:800; cursor:pointer}
-    #confirmBtn[disabled]{opacity:.55; cursor:not-allowed}
+
+    /* grid calendar */
+    .cal{overflow:auto;border:1px solid #e5e7eb;border-radius:10px}
+    .grid{display:grid;min-width:640px}
+    /* 1列目は時間、残り7列が曜日 */
+    .grid{grid-template-columns: 84px repeat(7, 1fr)}
+    .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;padding:8px;display:flex;align-items:center;justify-content:center}
+    .th{background:#f5f7fa;font-weight:700}
+    .dow{font-size:12px;color:#555}
+    .date{font-size:13px}
+    .timecell{background:#fafafa;font-size:13px;font-weight:700}
+    .avail{cursor:pointer;border-radius:8px;border:1px solid #e6e6e6;background:#fff;padding:6px 0;width:100%;max-width:64px;display:flex;align-items:center;justify-content:center;gap:6px;transition:box-shadow .15s,border-color .15s}
+    .avail .mark{font-size:16px;line-height:1}
+    .avail .lab{font-size:12px;color:#333}
+    .avail:hover{box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .avail.selected{border-color:#1a2e44;box-shadow:0 0 0 3px rgba(26,46,68,.15)}
+    .disabled{opacity:.45;pointer-events:none}
+    .ng{color:#aaa;font-size:14px}
+
+    .confirmbar{display:flex;gap:10px;margin-top:12px}
+    #confirmBtn{flex:1;padding:12px;border:none;border-radius:10px;background:#1a2e44;color:#fff;font-size:15px;font-weight:800;cursor:pointer}
+    #confirmBtn[disabled]{opacity:.55;cursor:not-allowed}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>無料相談の予約</h1>
-      <p class="help">LINEの表示名は自動入力されます。<strong>日付/時間を選ぶ → 「この日時で予約」</strong>の2ステップです。</p>
+      <p class="help">LINE表示名は自動入力。<strong>○</strong>をタップ → 「この日時で予約」。<br>※表示・予約は <strong>今週と来週</strong>のみ、過去は選べません。</p>
 
-      <div class="section">
-        <label>お名前</label>
-        <input id="name" type="text" class="field" readonly />
-      </div>
+      <label>お名前</label>
+      <input id="name" type="text" class="field" readonly />
 
       <div class="weekbar">
-        <button id="prevWeek" class="weekbtn" type="button" aria-label="前の週">← 前の週</button>
+        <button id="prevWeek" class="weekbtn" type="button">←</button>
         <div id="weekTitle" class="weektitle" aria-live="polite"></div>
-        <button id="nextWeek" class="weekbtn" type="button" aria-label="次の週">次の週 →</button>
+        <button id="nextWeek" class="weekbtn" type="button">→</button>
       </div>
 
-      <div id="slots" class="section"></div>
+      <div class="cal">
+        <div id="grid" class="grid"></div>
+      </div>
 
       <div class="confirmbar">
         <button id="confirmBtn" type="button" disabled>この日時で予約</button>
@@ -61,125 +76,182 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js" defer></script>
   <script>
   (function(){
-    const LIFF_ID  = "2007979122-nWPjgJGA";                 // 例: 2007979122-nWPjgJGA
+    const LIFF_ID  = "2007979122-nWPjgJGA";               // ←置換
     const API_BASE = `${location.origin}/api`;
 
-    let displayName = "";
-    let lineUserId  = null;
-    let weekIndex   = 0;
-    let selectedStartIso = null;
+    // 2週間制限
+    const WEEK_MIN = 0;   // 今週
+    const WEEK_MAX = 1;   // 来週まで
 
+    // 時間軸（8:00〜23:30 を30分刻みで固定表示）
+    const TIMES = [];
+    for(let h=8; h<=23; h++){
+      TIMES.push(`${pad(h)}:00`);
+      if(h!==23) TIMES.push(`${pad(h)}:30`);
+    }
+
+    let displayName = ""; let lineUserId = null;
+    let weekIndex = 0;
+    let selectedIso = null;
+    let weekSlots = []; // この週のスロットのみ
+
+    function pad(n){return (n<10?'0':'')+n}
+    function wdayJP(d){return ['日','月','火','水','木','金','土'][d]}
+    function fmtMD(d){return `${d.getMonth()+1}/${pad(d.getDate())}`}
     function startOfWeek(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
     function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
-    function fmtMD(d){ return `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`; }
-    function wdayJP(dow){ return ['日','月','火','水','木','金','土'][dow]; }
-    function fmtHM(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-    function prettyLabel(iso, minutes){ const d=new Date(iso); return `${fmtMD(d)}（${wdayJP(d.getDay())}） ${fmtHM(d)}〜（${minutes}分）`; }
-    function toast(t){ document.getElementById("toast").textContent = t || ""; }
+    function hm(d){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
 
-    function setWeekTitle(baseDate){
-      const ws = startOfWeek(baseDate), we = addDays(ws,6);
-      document.getElementById("weekTitle").textContent =
-        `${fmtMD(ws)}（${wdayJP(ws.getDay())}） 〜 ${fmtMD(we)}（${wdayJP(we.getDay())}）`;
-    }
-
-    function updateConfirmBtn(){
-      document.getElementById("confirmBtn").disabled = !selectedStartIso;
-    }
-
-    function selectSlot(btn){
-      document.querySelectorAll(".slot.selected").forEach(el=>el.classList.remove("selected"));
-      btn.classList.add("selected");
-      selectedStartIso = btn.dataset.iso || null;
-      updateConfirmBtn();
-    }
-
-    function renderWeek(slots){
+    function setWeekTitle(){
       const base = addDays(new Date(), weekIndex*7);
-      setWeekTitle(base);
+      const ws = startOfWeek(base), we = addDays(ws,6);
+      document.getElementById('weekTitle').textContent =
+        `${fmtMD(ws)}（${wdayJP(ws.getDay())}） 〜 ${fmtMD(we)}（${wdayJP(we.getDay())}）`;
+      // 矢印の活性/非活性（過去へ行けない・2週間超は行けない）
+      document.getElementById('prevWeek').disabled = (weekIndex<=WEEK_MIN);
+      document.getElementById('nextWeek').disabled = (weekIndex>=WEEK_MAX);
+    }
 
-      const wrap = document.getElementById("slots");
-      wrap.innerHTML = "";
-      selectedStartIso = null; updateConfirmBtn();
+    function toast(t){ document.getElementById('toast').textContent = t || '' }
 
-      if (!slots || slots.length === 0) {
-        wrap.insertAdjacentHTML('beforeend', `<div class="help">この週の空きはありません。</div>`);
-        return;
+    function renderGrid(){
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      // スロットを Map に（key: dayKey|HH:MM）
+      const set = new Map();
+      weekSlots.forEach(s=>{
+        const d = new Date(s.startIso);
+        const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${hm(d)}`;
+        set.set(key, s.startIso);
+      });
+
+      const today = new Date(); // 過去無効化
+      today.setSeconds(0,0);
+
+      const base = addDays(new Date(), weekIndex*7);
+      const ws = startOfWeek(base);
+
+      // ====== ヘッダ行（左上空白 + 7日） ======
+      // 左上
+      const h0 = document.createElement('div'); h0.className='cell th'; grid.appendChild(h0);
+      // 7日分
+      for(let i=0;i<7;i++){
+        const d = addDays(ws, i);
+        const head = document.createElement('div');
+        head.className='cell th';
+        head.innerHTML = `<div style="text-align:center">
+            <div class="dow">${['日','月','火','水','木','金','土'][d.getDay()]}</div>
+            <div class="date">${fmtMD(d)}</div>
+          </div>`;
+        grid.appendChild(head);
       }
 
-      // day毎にまとめる
-      const byDay = {};
-      slots.forEach(s => {
-        const d = new Date(s.startIso);
-        const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-        (byDay[key] ||= []).push(s);
-      });
+      // ====== 各時間行 ======
+      TIMES.forEach(time => {
+        // 時間欄
+        const tcell = document.createElement('div');
+        tcell.className='cell timecell';
+        tcell.textContent = time;
+        grid.appendChild(tcell);
 
-      Object.keys(byDay).sort((a,b)=> new Date(a)-new Date(b)).forEach(dayKey=>{
-        const d = new Date(dayKey);
-        wrap.insertAdjacentHTML('beforeend', `<div class="dayhdr">${fmtMD(d)}（${wdayJP(d.getDay())}）</div>`);
-        byDay[dayKey].sort((a,b)=> new Date(a.startIso)-new Date(b.startIso)).forEach(slot=>{
-          const btn = document.createElement("button");
-          btn.className = "slot";
-          btn.type = "button";
-          btn.dataset.iso = slot.startIso;
-          btn.textContent = prettyLabel(slot.startIso, 30);
-          btn.addEventListener("click", () => selectSlot(btn));
-          wrap.appendChild(btn);
-        });
+        // 7日ぶんのセル
+        for(let i=0;i<7;i++){
+          const d = addDays(ws,i);
+          const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
+          const iso = set.get(key); // スロットがあれば ISO
+
+          const cell = document.createElement('div');
+          cell.className='cell';
+
+          if(iso){
+            const past = new Date(iso) < today;
+            const btn = document.createElement('button');
+            btn.className = 'avail' + (past?' disabled':'');
+            btn.type='button';
+            btn.dataset.iso = iso;
+            btn.innerHTML = `<span class="mark">○</span><span class="lab">${time}</span>`;
+            if(!past){
+              btn.addEventListener('click', ()=>{
+                document.querySelectorAll('.avail.selected').forEach(el=>el.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedIso = iso;
+                document.getElementById('confirmBtn').disabled = !selectedIso;
+              });
+            }
+            cell.appendChild(btn);
+          } else {
+            const ng = document.createElement('div');
+            ng.className='ng';
+            ng.textContent='×';
+            cell.appendChild(ng);
+          }
+
+          grid.appendChild(cell);
+        }
       });
     }
 
-    async function fetchAvailable(week){
-      const res = await fetch(`${API_BASE}/available?week=${week}`, { headers:{ accept:"application/json" } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    async function fetchWeek(){
+      setWeekTitle();
+      document.getElementById('confirmBtn').disabled = true;
+      selectedIso = null;
+      const res = await fetch(`${API_BASE}/available?week=${weekIndex}`, { headers:{accept:'application/json'} });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      renderWeek(data.slots || []);
+      weekSlots = data.slots || [];
+      renderGrid();
     }
 
-    // 週ナビ
-    document.addEventListener("click", async (e)=> {
-      if (e.target.id === "prevWeek") { weekIndex--; await fetchAvailable(weekIndex); }
-      if (e.target.id === "nextWeek") { weekIndex++; await fetchAvailable(weekIndex); }
-      if (e.target.id === "confirmBtn" && selectedStartIso) { book(selectedStartIso); }
+    document.getElementById('prevWeek').addEventListener('click', async ()=>{
+      if(weekIndex<=WEEK_MIN) return;
+      weekIndex--; await fetchWeek();
+    });
+    document.getElementById('nextWeek').addEventListener('click', async ()=>{
+      if(weekIndex>=WEEK_MAX) return;
+      weekIndex++; await fetchWeek();
     });
 
-    // 初期：まず今週の枠だけ取得（高速表示）
-    fetchAvailable(0).catch(err => { console.error(err); toast("空き枠の取得に失敗しました。"); });
+    document.getElementById('confirmBtn').addEventListener('click', async ()=>{
+      if(!selectedIso) return;
+      try{
+        const res = await fetch(`${API_BASE}/book`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'book', startIso: selectedIso, name: displayName, lineUserId })
+        });
+        const j = await res.json();
+        if(j.ok){
+          toast('予約を受け付けました。LINEにも確認メッセージを送ります。');
+          // そのセルを×に更新（簡易差分更新）
+          weekSlots = weekSlots.filter(s => s.startIso !== selectedIso);
+          renderGrid();
+          if(liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 300);
+        }else{
+          toast('その枠は埋まっています。別の時間をお選びください。');
+          // 再取得して最新化
+          await fetchWeek();
+        }
+      }catch(e){
+        console.error(e);
+        toast('通信エラー。時間をおいて再度お試しください。');
+      }
+    });
+
+    // 初回：今週のみ
+    fetchWeek().catch(err=>{ console.error(err); toast('空き枠の取得に失敗しました。'); });
 
     // LIFFは遅延初期化（描画後）
     (async () => {
-      try {
+      try{
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         const prof = await liff.getProfile();
-        displayName = prof.displayName || "";
+        displayName = prof.displayName || '';
         lineUserId  = prof.userId || null;
-        document.getElementById("name").value = displayName;
-      } catch(e) {
-        console.warn("LIFF lazy init failed:", e);
-      }
+        document.getElementById('name').value = displayName;
+      }catch(e){ console.warn('LIFF init (lazy) failed:', e); }
     })();
-
-    async function book(startIso) {
-      try {
-        const res = await fetch(`${API_BASE}/book`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "book", startIso, name: displayName, lineUserId })
-        });
-        const json = await res.json();
-        if (json.ok) {
-          toast("予約を受け付けました。LINEにも確認メッセージを送ります。");
-          if (liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 300);
-        } else {
-          toast("その枠は埋まっています。別の時間をお選びください。");
-        }
-      } catch (e) {
-        console.error(e);
-        toast("通信エラー。時間をおいて再度お試しください。");
-      }
-    }
   })();
   </script>
 </body>
