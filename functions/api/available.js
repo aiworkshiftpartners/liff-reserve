@@ -1,4 +1,5 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbwDURb0NsMHmFVDb-M7yqabh2GHc2p-67h2EijzA5hgOVDCT9-3EbDJd_-_D8cS0faI/exec"; // GAS /exec
+// /functions/api/available.js
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbxWpCA1T4jbtfL1jsDqoth6V3x4uUoPimIPYprxtaGIoRw02fAkP3RTZn-9oSaVzpgT/exec";
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -21,5 +22,4 @@ export async function onRequestGet({ request }) {
     });
   }
 }
-
 export async function onRequestOptions(){ return new Response(null, { headers: CORS }); }

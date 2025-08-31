@@ -1,4 +1,5 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbwDURb0NsMHmFVDb-M7yqabh2GHc2p-67h2EijzA5hgOVDCT9-3EbDJd_-_D8cS0faI/exec"; // GAS /exec
+// /functions/api/book.js
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbxWpCA1T4jbtfL1jsDqoth6V3x4uUoPimIPYprxtaGIoRw02fAkP3RTZn-9oSaVzpgT/exec";
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -10,11 +11,7 @@ const CORS = {
 export async function onRequestPost({ request }) {
   try {
     const body = await request.text();
-    const upstream = await fetch(GAS_BASE, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body,
-    });
+    const upstream = await fetch(GAS_BASE, { method:"POST", headers:{ "content-type":"application/json" }, body });
     const text = await upstream.text();
     const ct = upstream.headers.get("content-type") || "application/json";
     return new Response(text, { status: upstream.status, headers: { ...CORS, "content-type": ct } });
@@ -24,5 +21,4 @@ export async function onRequestPost({ request }) {
     });
   }
 }
-
 export async function onRequestOptions(){ return new Response(null, { headers: CORS }); }

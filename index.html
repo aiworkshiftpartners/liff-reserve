@@ -12,6 +12,7 @@
       --muted:#667085;
       --sat-bg:#eef5ff; --sun-bg:#ffeef0;
       --sat-fg:#2563eb; --sun-fg:#ef4444;
+      --sel-bg:rgba(26,46,68,.10);
     }
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
@@ -48,7 +49,9 @@
     .ok{position:relative;cursor:pointer;border:0;background:transparent;width:100%;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .05s, box-shadow .15s}
     .ok .ring{width:24px;height:24px;border-radius:999px;border:3px solid var(--brand);background:transparent;box-sizing:border-box}
     .ok:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
-    .ok.selected .ring{background:var(--brand)}
+    /* 反転（背景＋丸の色） */
+    .cell.sel{background:var(--sel-bg)}
+    .ok.selected .ring{background:var(--brand);border-color:#fff}
     .ok.selected{transform:scale(1.06)}
     .ok.selected::after{content:'';position:absolute;inset:-3px;border-radius:12px;box-shadow:0 0 0 3px rgba(26,46,68,.18)}
 
@@ -151,10 +154,9 @@
         grid.appendChild(c);
       });
 
-      // GASからの slotMap
+      // slotMap
       const slotMap = new Map();
       weekSlots.forEach(s=>{ const dt=new Date(s.startIso); slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso); });
-
       const now = new Date(); now.setSeconds(0,0);
 
       // body
@@ -175,8 +177,11 @@
               btn.className='ok'; btn.type='button'; btn.dataset.iso=iso;
               const ring = document.createElement('span'); ring.className='ring'; btn.appendChild(ring);
               btn.addEventListener('click', ()=>{
+                document.querySelectorAll('.cell.sel').forEach(el=>el.classList.remove('sel'));
                 document.querySelectorAll('.ok.selected').forEach(el=>el.classList.remove('selected'));
-                btn.classList.add('selected'); selectedIso = iso;
+                cell.classList.add('sel');
+                btn.classList.add('selected');
+                selectedIso = iso;
                 document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
               });
               cell.appendChild(btn);
@@ -226,7 +231,7 @@
     // 初期ロード
     fetchWeek().catch(e=>{ console.error(e); toast('空き枠の取得に失敗しました。'); });
 
-    // LIFF：表示名を初期値にセット（編集可）
+    // LIFF：表示名を初期値に（編集可）
     (async () => {
       try{
         await liff.init({ liffId: LIFF_ID });
