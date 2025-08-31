@@ -10,38 +10,54 @@
       --sat-fg:#2563eb; --sun-fg:#ef4444;
       --sat-bg:#eef5ff; --sun-bg:#ffeef0;
       --error:#ef4444;
+      --maxw:860px;
     }
     body{margin:0;font-family:system-ui,"Noto Sans JP",sans-serif;background:#fafafa}
-    .wrap{max-width:860px;margin:0 auto;padding:16px}
+    .wrap{max-width:var(--maxw);margin:0 auto;padding:16px}
     .card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+
+    /* タイトル & 説明 */
     h1{margin:0 0 10px;font-size:22px}
     .desc{font-size:14px;margin:0 0 18px;color:#444}
 
+    /* 横幅をボタンと完全一致させるための内側コンテナ */
+    .section{max-width:100%;} /* ボタンがカードの幅いっぱいなので合わせる */
+
+    /* 入力 */
     label{font-weight:700;font-size:14px;display:block;margin-bottom:4px}
     .req{color:var(--error)}
     .name{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px}
     .name.error{border-color:var(--error)}
     .err-msg{color:var(--error);font-size:12px;margin:4px 0 10px;display:none}
 
-    .weekbar{display:flex;justify-content:space-between;align-items:center;background:var(--brand);color:#fff;padding:6px 10px;margin:12px 0}
+    /* 週バー：カレンダーと一体化（隙間なし） */
+    .weekwrap{border:1px solid #ddd;border-bottom:0;border-top-left-radius:10px;border-top-right-radius:10px;overflow:hidden}
+    .weekbar{display:flex;justify-content:space-between;align-items:center;background:var(--brand);color:#fff;padding:6px 10px}
     .weekbtn{background:none;border:0;color:#fff;font-size:18px;cursor:pointer}
     .weekbtn[disabled]{opacity:.4;cursor:not-allowed}
     .range{font-weight:700}
 
+    /* カレンダー：週バーと密着させるため上側の角丸はなし */
+    .cal{border:1px solid #ddd;border-top:0;border-bottom-left-radius:10px;border-bottom-right-radius:10px;overflow:hidden}
     .grid{display:grid;grid-template-columns:56px repeat(7,1fr)}
-    .cell{border:1px solid #eee;display:flex;align-items:center;justify-content:center;height:40px}
+    .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center;height:40px}
     .th{background:#f5f7fa;font-weight:700}
     .dow{font-size:12px}
     .date{font-size:13px}
     .sat .dow,.sat .date{color:var(--sat-fg)} .sun .dow,.sun .date{color:var(--sun-fg)}
     .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
+    /* ○：サイズを小さく戻す */
     .ok{cursor:pointer;border:0;background:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-    .ok .ring{width:20px;height:20px;border:3px solid var(--brand);border-radius:999px}
+    .ok .ring{width:18px;height:18px;border:3px solid var(--brand);border-radius:999px} /* ←ここ小さめに戻した */
     .ok.selected .ring{background:var(--brand)}
+
+    /* ×：テキストのみ */
     .ngbox{font-weight:900;color:#777}
 
+    /* ボタン（幅=セクション幅100%） */
     #confirmBtn{width:100%;margin-top:14px;padding:12px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer}
+
     .help{font-size:12px;color:var(--muted);margin-top:6px}
   </style>
 </head>
@@ -51,20 +67,31 @@
       <h1>無料相談予約フォーム</h1>
       <p class="desc">お名前を入力し、希望の日付・時間を選択してください。</p>
 
-      <label for="name">お名前 <span class="req">*</span></label>
-      <input id="name" class="name" type="text" placeholder="お名前を入力" />
-      <div id="nameErr" class="err-msg">お名前を入力してください</div>
-
-      <div class="weekbar">
-        <button id="prevWeek" class="weekbtn">‹</button>
-        <div id="range">–</div>
-        <button id="nextWeek" class="weekbtn">›</button>
+      <div class="section">
+        <label for="name">お名前 <span class="req">*</span></label>
+        <input id="name" class="name" type="text" placeholder="お名前を入力" />
+        <div id="nameErr" class="err-msg">お名前を入力してください</div>
       </div>
 
-      <div class="grid" id="grid"></div>
-      <div id="calErr" class="err-msg">日付を選択してください</div>
+      <!-- 週バーとカレンダーを密着させる -->
+      <div class="section">
+        <div class="weekwrap">
+          <div class="weekbar">
+            <button id="prevWeek" class="weekbtn">‹</button>
+            <div id="range" class="range">–</div>
+            <button id="nextWeek" class="weekbtn">›</button>
+          </div>
+        </div>
+        <div class="cal" id="calBox">
+          <div id="grid" class="grid"></div>
+        </div>
+        <div id="calErr" class="err-msg">日付を選択してください</div>
+      </div>
 
-      <button id="confirmBtn">この日時で予約</button>
+      <div class="section">
+        <button id="confirmBtn">この日時で予約</button>
+      </div>
+
       <p id="toast" class="help"></p>
     </div>
   </div>
@@ -72,8 +99,8 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
   (function(){
-    const LIFF_ID="2007979122-nWPjgJGA";       // あなたのLIFF ID
-    const API_BASE=`${location.origin}/api`;   // CF Functions 経由
+    const LIFF_ID="2007979122-nWPjgJGA";
+    const API_BASE=`${location.origin}/api`;
     const WEEK_MIN=0,WEEK_MAX=1; let weekIndex=0;
     let lineUserId=null,selectedIso=null,weekSlots=[];
 
@@ -155,12 +182,12 @@
     document.getElementById("prevWeek").onclick=()=>{if(weekIndex>WEEK_MIN){weekIndex--;fetchWeek();}};
     document.getElementById("nextWeek").onclick=()=>{if(weekIndex<WEEK_MAX){weekIndex++;fetchWeek();}};
 
-    // confirm
     document.getElementById("confirmBtn").onclick=async()=>{
       let bad=false;const name=getName();
       if(!name){document.getElementById("name").classList.add("error");document.getElementById("nameErr").style.display="block";bad=true;}
       else{document.getElementById("name").classList.remove("error");document.getElementById("nameErr").style.display="none";}
-      if(!selectedIso){document.getElementById("calErr").style.display="block";bad=true;}else{document.getElementById("calErr").style.display="none";}
+      if(!selectedIso){document.getElementById("calErr").style.display="block";bad=true;}
+      else{document.getElementById("calErr").style.display="none";}
       if(bad)return;
 
       const res=await fetch(`${API_BASE}/book`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"book",startIso:selectedIso,name,lineUserId})});
