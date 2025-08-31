@@ -1,5 +1,5 @@
 // /functions/api/available.js
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbxWpCA1T4jbtfL1jsDqoth6V3x4uUoPimIPYprxtaGIoRw02fAkP3RTZn-9oSaVzpgT/exec";
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbwkdbhx0eD4mEhfelNNU2ajKVqBKLF9TA238c8MdgfCE2QCGC9VKX786sW1zyCIl7It/exec";
 
 const CORS = {
   "access-control-allow-origin": "*",
