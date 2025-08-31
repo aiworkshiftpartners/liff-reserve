@@ -115,82 +115,98 @@
     function toast(t){ document.getElementById('toast').textContent = t || '' }
 
     function renderGrid(){
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '';
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
 
-      // スロットを Map に（key: dayKey|HH:MM）
-      const set = new Map();
-      weekSlots.forEach(s=>{
-        const d = new Date(s.startIso);
-        const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${hm(d)}`;
-        set.set(key, s.startIso);
-      });
+  // 表示レンジ：今日00:00 〜 今日+14日(独占) ＝ 今日を含む14日間
+  const rangeStart = new Date();
+  rangeStart.setHours(0,0,0,0);
+  const rangeEnd = new Date(rangeStart);
+  rangeEnd.setDate(rangeEnd.getDate() + 14); // 14日後の0:00（この直前まで表示）
 
-      const today = new Date(); // 過去無効化
-      today.setSeconds(0,0);
+  // この週の開始（日曜）
+  const base = addDays(new Date(), weekIndex*7);
+  const ws = startOfWeek(base);
 
-      const base = addDays(new Date(), weekIndex*7);
-      const ws = startOfWeek(base);
+  // この週の7日から、レンジ内の「表示する日だけ」を抽出
+  const days = [];
+  for(let i=0;i<7;i++){
+    const d = addDays(ws, i);
+    if (d >= rangeStart && d < rangeEnd) days.push(d); // レンジ外は完全非表示（列を作らない）
+  }
 
-      // ====== ヘッダ行（左上空白 + 7日） ======
-      // 左上
-      const h0 = document.createElement('div'); h0.className='cell th'; grid.appendChild(h0);
-      // 7日分
-      for(let i=0;i<7;i++){
-        const d = addDays(ws, i);
-        const head = document.createElement('div');
-        head.className='cell th';
-        head.innerHTML = `<div style="text-align:center">
-            <div class="dow">${['日','月','火','水','木','金','土'][d.getDay()]}</div>
-            <div class="date">${fmtMD(d)}</div>
-          </div>`;
-        grid.appendChild(head);
+  // grid列数（時間列1 + 表示日数）
+  grid.style.gridTemplateColumns = `84px repeat(${days.length}, 1fr)`;
+
+  // --- ヘッダ行 ---
+  const h0 = document.createElement('div'); h0.className='cell th'; grid.appendChild(h0);
+  days.forEach(d=>{
+    const head = document.createElement('div');
+    head.className='cell th';
+    head.innerHTML = `<div style="text-align:center">
+        <div class="dow">${wdayJP(d.getDay())}</div>
+        <div class="date">${fmtMD(d)}</div>
+      </div>`;
+    grid.appendChild(head);
+  });
+
+  // --- スロットをMap化（key: YYYY-M-D|HH:MM -> ISO） ---
+  const slotMap = new Map();
+  weekSlots.forEach(s=>{
+    const dt = new Date(s.startIso);
+    const key = `${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`;
+    slotMap.set(key, s.startIso);
+  });
+
+  // --- 時間行 ---
+  const now = new Date(); now.setSeconds(0,0);
+  TIMES.forEach(time=>{
+    // 左端：時刻
+    const tcell = document.createElement('div');
+    tcell.className = 'cell timecell';
+    tcell.textContent = time;
+    grid.appendChild(tcell);
+
+    // 各日セル（レンジ外の日は最初からdaysに入っていない＝列なし）
+    days.forEach(d=>{
+      const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
+      const iso = slotMap.get(key);
+
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+
+      if (iso) {
+        const isPast = new Date(iso) < now; // 2週間レンジ内でも“現在より前の時刻”は無効
+        const btn = document.createElement('button');
+        btn.className = 'avail' + (isPast ? ' disabled' : '');
+        btn.type = 'button';
+        btn.dataset.iso = iso;
+        btn.innerHTML = `<span class="mark">○</span><span class="lab">${time}</span>`;
+        if (!isPast) {
+          btn.addEventListener('click', ()=>{
+            document.querySelectorAll('.avail.selected').forEach(el=>el.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedIso = iso;
+            document.getElementById('confirmBtn').disabled = !selectedIso;
+          });
+        }
+        cell.appendChild(btn);
+      } else {
+        // 予約枠が無いマスは“×”を出したい場合は下行のコメント解除。
+        // 今回の要件は「レンジ外を非表示」なので、レンジ内の空き無しは従来通り×でOKなら残す/不要なら空に。
+        const ng = document.createElement('div'); ng.className='ng'; ng.textContent='×';
+        cell.appendChild(ng);
+        // 何も出したくないなら上3行を削除して `/* 空セル */` のままに。
       }
 
-      // ====== 各時間行 ======
-      TIMES.forEach(time => {
-        // 時間欄
-        const tcell = document.createElement('div');
-        tcell.className='cell timecell';
-        tcell.textContent = time;
-        grid.appendChild(tcell);
+      grid.appendChild(cell);
+    });
+  });
 
-        // 7日ぶんのセル
-        for(let i=0;i<7;i++){
-          const d = addDays(ws,i);
-          const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
-          const iso = set.get(key); // スロットがあれば ISO
-
-          const cell = document.createElement('div');
-          cell.className='cell';
-
-          if(iso){
-            const past = new Date(iso) < today;
-            const btn = document.createElement('button');
-            btn.className = 'avail' + (past?' disabled':'');
-            btn.type='button';
-            btn.dataset.iso = iso;
-            btn.innerHTML = `<span class="mark">○</span><span class="lab">${time}</span>`;
-            if(!past){
-              btn.addEventListener('click', ()=>{
-                document.querySelectorAll('.avail.selected').forEach(el=>el.classList.remove('selected'));
-                btn.classList.add('selected');
-                selectedIso = iso;
-                document.getElementById('confirmBtn').disabled = !selectedIso;
-              });
-            }
-            cell.appendChild(btn);
-          } else {
-            const ng = document.createElement('div');
-            ng.className='ng';
-            ng.textContent='×';
-            cell.appendChild(ng);
-          }
-
-          grid.appendChild(cell);
-        }
-      });
-    }
+  // 矢印の活性/非活性（0..1のみ移動可）
+  document.getElementById('prevWeek').disabled = (weekIndex <= WEEK_MIN);
+  document.getElementById('nextWeek').disabled = (weekIndex >= WEEK_MAX);
+}
 
     async function fetchWeek(){
       setWeekTitle();
