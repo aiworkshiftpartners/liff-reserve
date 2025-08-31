@@ -7,87 +7,66 @@
   <title>無料相談の予約（LINE限定）</title>
   <style>
     :root{
-      --brand:#1a2e44;         /* ボタンと同じ色（○の色もこれ） */
+      --brand:#1a2e44;          /* ボタン色 = 週バー色 = ○の色（好みで変更） */
       --grid-border:#e5e7eb;
-      --muted:#666;
+      --muted:#667085;
       --gray:#f2f4f7;
+      --sat-bg:#eef5ff; --sun-bg:#ffeef0;
+      --sat-fg:#2563eb; --sun-fg:#ef4444;
     }
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
     body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111;line-height:1.8}
-    .wrap{min-height:100%;display:grid;place-items:start center;padding:16px}
-    .card{width:100%;max-width:820px;background:#fff;border:1px solid var(--grid-border);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
-    h1{margin:0 0 6px;font-weight:800;font-size:clamp(22px,4.5vw,28px)}
-    .help{font-size:12px;color:var(--muted);margin:0 0 10px}
+    .wrap{min-height:100%;display:grid;place-items:start center;padding:12px}
+    .card{width:100%;max-width:860px;background:#fff;border:1px solid var(--grid-border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);overflow:hidden}
 
-    .field{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#fafafa;margin:4px 0 10px}
+    /* 週ナビ（年は出さない・背景はボタンと同色） */
+    .weekbar{display:flex;align-items:center;justify-content:space-between;background:var(--brand);color:#fff;padding:10px 12px}
+    .weekbtn{appearance:none;background:transparent;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer}
+    .weekbtn[disabled]{opacity:.45;cursor:not-allowed}
+    .range{font-weight:800;font-size:clamp(17px,4.5vw,21px);letter-spacing:.5px}
 
-    /* week nav */
-    .weekbar{display:flex;align-items:center;gap:8px;justify-content:center;margin:8px 0 10px}
-    .weekbtn{border:1px solid var(--grid-border);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
-    .weekbtn[disabled]{opacity:.5;cursor:not-allowed}
-    .weektitle{font-weight:700}
+    .inner{padding:14px 14px 16px}
+    .help{font-size:12px;color:var(--muted);margin:0 0 8px}
+    label{font-size:13px;font-weight:700}
+    .name{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;margin:6px 0 12px}
 
-    /* calendar grid */
-    .cal{border:1px solid var(--grid-border);border-radius:10px}
-    .grid{display:grid;grid-template-columns: 54px repeat(7,1fr)}
-    .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;padding:6px;display:flex;align-items:center;justify-content:center}
-    /* 置き換え or 追記 */
+    .cal{border:1px solid var(--grid-border);border-radius:10px;overflow:hidden}
+    .grid{display:grid;grid-template-columns: 56px repeat(7, minmax(0,1fr))}
+    .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center}
 
-/* ヘッダ */
-.th{background:#f5f7fa;font-weight:700}
-.th2{background:#f5f7fa;font-weight:700} /* ← 日付行も同じ背景に */
-
-.ok{
-  cursor:pointer;border-radius:10px;border:2px solid var(--brand);background:#fff;
-  width:100%;max-width:54px;height:38px;display:flex;align-items:center;justify-content:center;
-  transition:box-shadow .15s,border-color .15s, background .15s, color .15s, transform .05s;
-}
-.ok .mark{font-size:22px;line-height:1;color:var(--brand)}
-.ok:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
-/* クリックで“色反転＋拡大＋太枠”に */
-.ok.selected{
-  background:var(--brand);
-  border-color:var(--brand);
-  box-shadow:0 0 0 3px rgba(26,46,68,.18);
-  transform:scale(1.06);
-}
-.ok.selected .mark{color:#fff}
-
-/* スマホでも視認性を確保 */
-@media (max-width: 480px){
-  .ok,.ngbox{max-width:44px;height:34px}
-  .ok .mark{font-size:20px}
-  .ok.selected{transform:scale(1.04)}
-}
-    .dow{font-size:12px;color:#444}
+    /* ヘッダ2段（曜日→日付） */
+    .th{background:#f5f7fa;font-weight:700;padding:6px}
+    .dow{font-size:12px}
     .date{font-size:13px}
-    .sat .dow,.sat .date{color:#2563eb} /* 土=青 */
-    .sun .dow,.sun .date{color:#ef4444} /* 日=赤   */
+    .sat .dow,.sat .date{color:var(--sat-fg)}
+    .sun .dow,.sun .date{color:var(--sun-fg)}
 
-    .timecell{background:#fafafa;font-size:12px;font-weight:700}
+    /* 列トーン（本体セルを淡色） */
+    .satcol{background:var(--sat-bg)}
+    .suncol{background:var(--sun-bg)}
 
-    /* ボタン（○のみ大きく表示、時間ラベルは出さない） */
-    .ok{cursor:pointer;border-radius:10px;border:2px solid var(--brand);background:#fff;width:100%;max-width:54px;height:38px;
-        display:flex;align-items:center;justify-content:center;transition:box-shadow .15s,border-color .15s}
-    .ok .mark{font-size:22px;line-height:1;color:var(--brand)}
+    .timecell{background:#fafafa;font-size:12px;font-weight:700;padding:6px}
+
+    /* ○ボタン（輪のみ表示／クリックで反転） */
+    .ok{position:relative;cursor:pointer;border:0;background:transparent;width:100%;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .05s, box-shadow .15s}
+    .ok .ring{width:24px;height:24px;border-radius:999px;border:3px solid var(--brand);background:transparent;box-sizing:border-box}
     .ok:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
-    .ok.selected{box-shadow:0 0 0 3px rgba(26,46,68,.18)}
+    .ok.selected .ring{background:var(--brand)}
+    .ok.selected{transform:scale(1.06)}
+    .ok.selected::after{content:'';position:absolute;inset:-3px;border-radius:12px;box-shadow:0 0 0 3px rgba(26,46,68,.18)}
 
-    /* ×はクリック不可の灰色ボックス */
-    .ngbox{width:100%;max-width:54px;height:38px;border-radius:10px;background:var(--gray);color:#9aa3af;
-           display:flex;align-items:center;justify-content:center;font-size:20px;user-select:none}
+    /* 空きなし（クリック不可の灰色） */
+    .ngbox{width:100%;height:44px;border-radius:10px;background:var(--gray);opacity:.9}
 
-    .confirmbar{display:flex;gap:10px;margin-top:12px}
+    .confirm{display:flex;gap:10px;margin-top:12px}
     #confirmBtn{flex:1;padding:12px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
     #confirmBtn[disabled]{opacity:.55;cursor:not-allowed}
 
-    /* スマホ最適化：横スクロールなしで収まるよう縮小 */
     @media (max-width: 480px){
-      .grid{grid-template-columns: 44px repeat(7,1fr)}
-      .cell{padding:4px}
-      .ok,.ngbox{max-width:44px;height:34px}
-      .ok .mark{font-size:20px}
+      .grid{grid-template-columns: 48px repeat(7, minmax(0,1fr))}
+      .ok,.ngbox{height:40px}
+      .ok .ring{width:22px;height:22px;border-width:3px}
       .timecell{font-size:11px}
       .date{font-size:12px}
     }
@@ -96,44 +75,43 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>無料相談予約フォーム</h1>
-      <p class="help">名前と予約日時を選択し「この日時で予約」をクリック。表示は<strong>今日から2週間</strong>のみです。</p>
-
-      <label>お名前</label>
-      <input id="name" type="text" class="field" readonly />
-
+      <!-- 年なし週バー（背景=ボタン色） -->
       <div class="weekbar">
-        <button id="prevWeek" class="weekbtn" type="button">←</button>
-        <div id="weekTitle" class="weektitle" aria-live="polite"></div>
-        <button id="nextWeek" class="weekbtn" type="button">→</button>
+        <button id="prevWeek" class="weekbtn" aria-label="前の週">‹</button>
+        <div id="range" class="range">–</div>
+        <button id="nextWeek" class="weekbtn" aria-label="次の週">›</button>
       </div>
 
-      <div class="cal">
-        <div id="grid" class="grid"></div>
-      </div>
+      <div class="inner">
+        <p class="help">○をタップ → 「この日時で予約」。表示は<strong>今日から2週間</strong>のみです。</p>
 
-      <div class="confirmbar">
-        <button id="confirmBtn" type="button" disabled>この日時で予約</button>
-      </div>
+        <label for="name">お名前（編集可）</label>
+        <input id="name" class="name" type="text" placeholder="お名前を入力" />
 
-      <p id="toast" class="help" aria-live="polite"></p>
+        <div class="cal"><div id="grid" class="grid"></div></div>
+
+        <div class="confirm">
+          <button id="confirmBtn" type="button" disabled>この日時で予約</button>
+        </div>
+        <p id="toast" class="help" aria-live="polite"></p>
+      </div>
     </div>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js" defer></script>
   <script>
   (function(){
-    const LIFF_ID  = "2007979122-nWPjgJGA";       // あなたのLIFF
-    const API_BASE = `${location.origin}/api`;
+    const LIFF_ID  = "2007979122-nWPjgJGA";    // ← あなたの LIFF ID
+    const API_BASE = `${location.origin}/api`; // Cloudflare Pages Functions 経由
 
-    // 2週間制限（今週=0 / 来週=1）
+    // 表示は今週(0)と来週(1)だけ
     const WEEK_MIN = 0, WEEK_MAX = 1;
+    let weekIndex = 0;
 
-    // 時間軸（8:00〜23:30・30分刻み）
+    // 8:00〜21:00（30分刻み）
     const TIMES=[]; for(let h=8; h<=21; h++){ TIMES.push(`${pad(h)}:00`); if(h!==21) TIMES.push(`${pad(h)}:30`); }
 
-    let displayName="", lineUserId=null;
-    let weekIndex=0, selectedIso=null, weekSlots=[];
+    let lineUserId=null, selectedIso=null, weekSlots=[];
 
     // utils
     function pad(n){return (n<10?'0':'')+n}
@@ -142,21 +120,21 @@
     function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
     function fmtMD(d){ return `${d.getMonth()+1}/${pad(d.getDate())}` }
     function hm(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+    function toast(t){ document.getElementById('toast').textContent = t || '' }
+    function getName(){ return (document.getElementById('name').value || '').trim(); }
 
-    function setWeekTitle(){
+    // 週バー（MM/DD 〜 MM/DD）
+    function setWeekBar(){
       const base = addDays(new Date(), weekIndex*7);
       const ws = startOfWeek(base), we = addDays(ws,6);
-      // 2週間レンジを文言で示す
-      document.getElementById('weekTitle').textContent =
-        `${fmtMD(ws)}（${wdayJP(ws.getDay())}） 〜 ${fmtMD(we)}（${wdayJP(we.getDay())}）`;
+      document.getElementById('range').textContent =
+        `${pad(ws.getMonth()+1)}/${pad(ws.getDate())} 〜 ${pad(we.getMonth()+1)}/${pad(we.getDate())}`;
       document.getElementById('prevWeek').disabled = (weekIndex<=WEEK_MIN);
       document.getElementById('nextWeek').disabled = (weekIndex>=WEEK_MAX);
     }
-    function toast(t){ document.getElementById('toast').textContent = t || '' }
 
-    function renderGrid(){
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '';
+    function render(){
+      const grid = document.getElementById('grid'); grid.innerHTML='';
 
       // 表示レンジ：今日0:00〜14日後0:00（今日含む14日）
       const rangeStart = new Date(); rangeStart.setHours(0,0,0,0);
@@ -164,111 +142,102 @@
 
       const base = addDays(new Date(), weekIndex*7);
       const ws = startOfWeek(base);
-      const days = [];
-      for(let i=0;i<7;i++){
-        const d = addDays(ws,i);
-        if(d>=rangeStart && d<rangeEnd) days.push(d); // レンジ外は列を作らない（非表示）
-      }
 
-      // 列数：時間列 + 表示する日数
-      grid.style.gridTemplateColumns = `54px repeat(${days.length}, 1fr)`;
+      // 週の中でレンジに入る日だけ使う（レンジ外は列自体非表示）
+      const days=[]; for(let i=0;i<7;i++){ const d=addDays(ws,i); if(d>=rangeStart && d<rangeEnd) days.push(d); }
 
-      // ===== 1行目：曜日 =====
-      // 左上（空白）
-      grid.appendChild(cell('cell th'));
+      // 列セット
+      grid.style.gridTemplateColumns = `56px repeat(${days.length}, minmax(0,1fr))`;
+
+      // ヘッダ1：曜日
+      grid.appendChild(div('cell th'));
       days.forEach(d=>{
-        const c = cell('cell th ' + (d.getDay()===0?'sun':d.getDay()===6?'sat':'')); // 日赤・土青
-        c.innerHTML = `<div class="dow">${wdayJP(d.getDay())}</div>`;
+        const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
+        const c = div(cls); c.innerHTML = `<div class="dow">${wdayJP(d.getDay())}</div>`;
         grid.appendChild(c);
       });
 
-      // ===== 2行目：日付 =====
-      // 左端（空白）
-      grid.appendChild(cell('cell th2'));
+      // ヘッダ2：日付（同背景）
+      grid.appendChild(div('cell th'));
       days.forEach(d=>{
-        const c = cell('cell th2 ' + (d.getDay()===0?'sun':d.getDay()===6?'sat':'')); // 日赤・土青
-        c.innerHTML = `<div class="date">${fmtMD(d)}</div>`;
+        const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
+        const c = div(cls); c.innerHTML = `<div class="date">${fmtMD(d)}</div>`;
         grid.appendChild(c);
       });
 
-      // スロットをMap化
+      // スロットMap
       const slotMap = new Map();
-      weekSlots.forEach(s=>{
-        const dt = new Date(s.startIso);
-        const key = `${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`;
-        slotMap.set(key, s.startIso);
-      });
+      weekSlots.forEach(s=>{ const dt=new Date(s.startIso); slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso); });
 
       const now = new Date(); now.setSeconds(0,0);
 
-      // ===== 時間行（○/×） =====
+      // 本体
       TIMES.forEach(time=>{
-        // 時刻列
-        const tcell = cell('cell timecell'); tcell.textContent = time; grid.appendChild(tcell);
-
+        const t = div('cell timecell'); t.textContent=time; grid.appendChild(t);
         days.forEach(d=>{
-          const k = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
-          const iso = slotMap.get(k);
+          const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
+          const iso = slotMap.get(key);
+          const tone = d.getDay()==0?'suncol': d.getDay()==6?'satcol':'';
+          const cell = div(`cell ${tone}`);
 
-          const c = cell('cell');
           if(iso){
             const isPast = new Date(iso) < now;
             const btn = document.createElement('button');
-            btn.className = 'ok' + (isPast?' disabled':'');
-            btn.type='button'; btn.dataset.iso = iso;
-            btn.innerHTML = `<span class="mark">○</span>`;
-            if(!isPast){
-              btn.addEventListener('click', ()=>{
-                document.querySelectorAll('.ok.selected').forEach(el=>el.classList.remove('selected'));
-                btn.classList.add('selected');
-                selectedIso = iso;
-                document.getElementById('confirmBtn').disabled = !selectedIso;
-              });
+            btn.className='ok'; btn.type='button'; btn.dataset.iso=iso; btn.setAttribute('aria-selected','false');
+            const ring = document.createElement('span'); ring.className='ring'; btn.appendChild(ring);
+            if(isPast){
+              btn.disabled=true; btn.style.opacity=.45; btn.style.cursor='not-allowed';
             }else{
-              btn.disabled = true;
-              btn.style.opacity = .5;
-              btn.style.cursor = 'not-allowed';
+              btn.addEventListener('click', ()=>{
+                document.querySelectorAll('.ok.selected').forEach(el=>{ el.classList.remove('selected'); el.setAttribute('aria-selected','false'); });
+                btn.classList.add('selected'); btn.setAttribute('aria-selected','true');
+                selectedIso = iso;
+                document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
+              });
             }
-            c.appendChild(btn);
+            cell.appendChild(btn);
           }else{
-            const ng = document.createElement('div');
-            ng.className = 'ngbox';
-            ng.textContent = '×';
-            c.appendChild(ng);
+            cell.appendChild(div('ngbox')); // 空きなし
           }
-          grid.appendChild(c);
+          grid.appendChild(cell);
         });
       });
     }
 
-    function cell(cls){ const d=document.createElement('div'); d.className=cls; return d; }
+    function div(cls){ const d=document.createElement('div'); d.className=cls; return d; }
 
     async function fetchWeek(){
-      setWeekTitle();
+      setWeekBar();
       selectedIso=null; document.getElementById('confirmBtn').disabled = true;
       const res = await fetch(`${API_BASE}/available?week=${weekIndex}`, { headers:{accept:'application/json'} });
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const j = await res.json();
       weekSlots = j.slots || [];
-      renderGrid();
+      render();
     }
 
-    // イベント
+    // 週ナビ
     document.getElementById('prevWeek').addEventListener('click', async ()=>{ if(weekIndex>WEEK_MIN){ weekIndex--; await fetchWeek(); }});
     document.getElementById('nextWeek').addEventListener('click', async ()=>{ if(weekIndex<WEEK_MAX){ weekIndex++; await fetchWeek(); }});
+
+    // 名前が空だと確定不可
+    document.getElementById('name').addEventListener('input', ()=>{
+      document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
+    });
+
+    // 予約POST
     document.getElementById('confirmBtn').addEventListener('click', async ()=>{
-      if(!selectedIso) return;
+      const name = getName(); if(!selectedIso || !name) return;
       try{
         const res = await fetch(`${API_BASE}/book`, {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ action:'book', startIso:selectedIso, name:displayName, lineUserId })
+          body: JSON.stringify({ action:'book', startIso:selectedIso, name, lineUserId })
         });
         const j = await res.json();
         if(j.ok){
           toast('予約を受け付けました。LINEにも確認メッセージを送ります。');
-          // そのマスだけ×に変更
           weekSlots = weekSlots.filter(s=>s.startIso!==selectedIso);
-          renderGrid();
+          render();
           if(liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 300);
         }else{
           toast('その枠は埋まっています。別の時間をお選びください。');
@@ -277,18 +246,17 @@
       }catch(e){ console.error(e); toast('通信エラー。時間をおいて再度お試しください。'); }
     });
 
-    // 初期（今週）
+    // 初期：今週
     fetchWeek().catch(e=>{ console.error(e); toast('空き枠の取得に失敗しました。'); });
 
-    // LIFFは遅延初期化（描画後）
+    // LIFF 初期化（名前の初期値だけ入れて編集は自由）
     (async () => {
       try{
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         const prof = await liff.getProfile();
-        displayName = prof.displayName || '';
-        lineUserId  = prof.userId || null;
-        document.getElementById('name').value = displayName;
+        document.getElementById('name').value = prof.displayName || '';
+        lineUserId = prof.userId || null;
       }catch(e){ console.warn('LIFF init failed:', e); }
     })();
   })();

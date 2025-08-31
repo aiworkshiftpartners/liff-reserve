@@ -1,39 +1,23 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbx7WB0f7IwU6YBXKWZlYnhAGMD97QqwZZMUtTK5jTH-vL-N1QiqR_khOwHtQ5RDZ5Em/exec"; // 例: https://script.google.com/macros/s/AKfycb.../exec
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbyJei1maZIYXLuIC38nlTQE0hBH3qNAjlqfqLi8S9euOEuGrmxc4FkXzHvuCVgXUa62/exec"; // ← あなたの /exec
 
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
   "access-control-allow-headers": "content-type",
+  "cache-control": "no-store",
 };
 
 export async function onRequestGet({ request }) {
-  const url = new URL(request.url);
-  const week = url.searchParams.get("week") ?? "0";
-
-  // エッジキャッシュ
-  const cache = caches.default;
-  const cacheKey = new Request(`${url.origin}/api/available?week=${week}`, request);
-  let resp = await cache.match(cacheKey);
-  if (resp) return resp;
-
-  const upstream = await fetch(`${GAS_BASE}?path=available&week=${encodeURIComponent(week)}`, {
-    headers: { accept: "application/json" },
-  });
-  const text = await upstream.text();
-
   try {
-    JSON.parse(text); // JSON検証
-    resp = new Response(text, {
-      headers: {
-        ...CORS,
-        "content-type": upstream.headers.get("content-type") || "application/json",
-        "cache-control": "public, s-maxage=120, stale-while-revalidate=60",
-      },
-    });
-    await cache.put(cacheKey, resp.clone());
-    return resp;
-  } catch {
-    return new Response(JSON.stringify({ ok:false, error:"bad_upstream", raw:text.slice(0,200) }), {
+    const url = new URL(request.url);
+    // /api/available?week=0.. を GAS ?path=available&week=.. に中継
+    const week = url.searchParams.get("week") ?? "0";
+    const upstream = await fetch(`${GAS_BASE}?path=available&week=${encodeURIComponent(week)}`);
+    const text = await upstream.text();
+    const ct = upstream.headers.get("content-type") || "application/json";
+    return new Response(text, { status: upstream.status, headers: { ...CORS, "content-type": ct } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok:false, error:"proxy_failed", message:String(err) }), {
       status: 502, headers: { ...CORS, "content-type": "application/json" }
     });
   }
