@@ -229,7 +229,7 @@
       });
     }
 
-    // 両週データを取得（常に week=0 と week=1 を取得して表示は“今日起点”で切り出し）
+    // 両週データを取得
     async function fetchWeeks(){
       setWeekBar();
       selectedIso=null;
@@ -290,7 +290,7 @@
           if(liff.isInClient&&liff.isInClient()) setTimeout(()=>liff.closeWindow(),600);
         }else{
           if(j.error==='already_booked'){
-            toast("無料相談はお１人様１回までです。<br>再度の予約をご希望の場合はお問い合わせください。");
+            toast("無料相談はお１人様１回までです。<br>再度ご予約をご希望の場合はお問い合わせください。");
           }else{
             toast("その枠は埋まっています。");
           }
@@ -305,7 +305,7 @@
       }
     };
 
-    // 初期ロード（両週まとめて）
+    // 初期ロード
     fetchWeeks().catch(e=>{ console.error(e); toast("空き枠の取得に失敗しました。"); });
 
     // LIFFプロフィールで氏名初期化

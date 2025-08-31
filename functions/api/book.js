@@ -1,5 +1,5 @@
 // /functions/api/book.js
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbzmWB5MnGW9xSCtCLCoKyo4Wj2gLUPlApqT5H_80qAO8gTYHjsqziBxTdqXJ-KsPFsP/exec";
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbzWbGakPuROcS0I7-PKbBjaJwqPIt-pNCev2-KYr1R3oocfNXVoFwykbe3A6gG8JlIR/exec";
 
 const CORS = {
   "access-control-allow-origin": "*",
