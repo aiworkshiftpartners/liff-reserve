@@ -16,13 +16,8 @@
 
     h1{margin:0 0 10px;font-size:22px}
     .desc{
-      font-size:12px;
-      margin:0 0 12px;
-      color:#888;
-      line-height:1.2;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      font-size:12px; margin:0 0 12px; color:#888; line-height:1.2;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
 
     .section{max-width:100%;}
@@ -34,38 +29,47 @@
     .name.error{border-color:var(--error)}
     .err-msg{color:var(--error);font-size:12px;margin:4px 0 10px;display:none}
 
+    /* カレンダー全体のバリデーション赤枠 */
     .calgroup{position:relative;border-radius:12px}
     .calgroup.invalid{outline:2px solid var(--error);outline-offset:2px;border-radius:12px}
 
+    /* 週バー（上段） */
     .weekwrap{border:1px solid #ddd;border-bottom:0;border-top-left-radius:10px;border-top-right-radius:10px;overflow:hidden;margin:0}
     .weekbar{display:flex;justify-content:space-between;align-items:center;background:var(--brand);color:#fff;padding:6px 10px}
     .weekbtn{background:none;border:0;color:#fff;font-size:18px;cursor:pointer}
     .weekbtn[disabled]{opacity:.4;cursor:not-allowed}
     .range{font-weight:700}
 
+    /* 表（下段） */
     .cal{border:1px solid #ddd;border-top:0;border-bottom-left-radius:10px;border-bottom-right-radius:10px;overflow:hidden;margin:0}
-    .grid{display:grid;grid-template-columns:48px repeat(7,1fr)}
+    .grid{display:grid;grid-template-columns:44px repeat(7,1fr)}
     .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center;height:40px}
+    /* 見出し行だけ高さを低く（“曜日”と“日付”） */
+    .cell.th{height:30px}
     .th{background:#f5f7fa;font-weight:700}
-    .dow{font-size:12px}
-    .date{font-size:13px}
+    .dow{font-size:11px}
+    .date{font-size:12px}
     .sat .dow,.sat .date{color:var(--sat-fg)}
     .sun .dow,.sun .date{color:var(--sun-fg)}
     .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
+    /* ○ボタン */
     .ok{cursor:pointer;border:0;background:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
     .ok .ring{width:16px;height:16px;border:3px solid var(--brand);border-radius:999px;transition:background .12s ease}
     .ok.selected .ring{background:var(--brand)}
 
+    /* × */
     .ngbox{font-weight:900;color:#777}
 
+    /* 予約ボタン */
     #confirmBtn{
       width:100%;margin-top:14px;padding:14px;background:var(--brand);color:#fff;border:none;border-radius:8px;
       font-weight:800;cursor:pointer;font-size:17px;position:relative;
     }
     #confirmBtn[disabled]{opacity:.7;cursor:not-allowed}
 
-    .help{font-size:12px;color:var(--muted);margin-top:6px}
+    /* トースト（<br>対応のため pre-line） */
+    .help{font-size:12px;color:#667085;margin-top:6px;white-space:pre-line}
   </style>
 </head>
 <body>
@@ -84,9 +88,9 @@
         <div id="calGroup" class="calgroup">
           <div class="weekwrap">
             <div class="weekbar">
-              <button id="prevWeek" class="weekbtn">‹</button>
+              <button id="prevWeek" class="weekbtn" aria-label="前へ">‹</button>
               <div id="range" class="range">–</div>
-              <button id="nextWeek" class="weekbtn">›</button>
+              <button id="nextWeek" class="weekbtn" aria-label="次へ">›</button>
             </div>
           </div>
           <div class="cal" id="calBox">
@@ -109,96 +113,147 @@
   (function(){
     const LIFF_ID="2007979122-nWPjgJGA";
     const API_BASE=`${location.origin}/api`;
-    const WEEK_MIN=0,WEEK_MAX=1; let weekIndex=0;
-    let lineUserId=null,selectedIso=null,weekSlots=[];
 
-    const TIMES=[];for(let h=8;h<=21;h++){TIMES.push(n2(h)+":00");if(h!==21)TIMES.push(n2(h)+":30");}
+    // 表示は「今日から7日」「+7日」で次の7日（最大2週間）
+    const WEEK_MIN=0, WEEK_MAX=1;
+    let windowIndex=0; // 0: 今日→6日後, 1: 今日+7→今日+13
+
+    let lineUserId=null, selectedIso=null;
+    let slotsWeek0=[], slotsWeek1=[]; // GASの週単位を両方保持
+
+    // 時間枠: 8:00〜21:00（30分刻み）
+    const TIMES=[]; for(let h=8;h<=21;h++){ TIMES.push(n2(h)+":00"); if(h!==21) TIMES.push(n2(h)+":30"); }
+
+    // util
     function n2(n){return (n<10?"0":"")+n}
     function wdayJP(d){return["日","月","火","水","木","金","土"][d]}
-    function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x}
-    function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
-    function fmtMDNoPad(d){return `${d.getMonth()+1}/${d.getDate()}`;}
+    function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x}
+    function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x}
     function hm(d){return `${n2(d.getHours())}:${n2(d.getMinutes())}`}
-    function toast(t){document.getElementById("toast").textContent=t||""}
-    function getName(){return (document.getElementById("name").value||"").trim();}
-    function div(cls){const d=document.createElement("div");d.className=cls;return d;}
+    function fmtMDNoPad(d){return `${d.getMonth()+1}/${d.getDate()}`} // 9/1
+    function today0(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
 
+    // <br>対応のtoast
+    function toast(t){
+      const el=document.getElementById("toast");
+      if(t && (t.includes("<br") || t.includes("\n"))) el.innerHTML = String(t).replace(/\n/g,"<br>");
+      else el.textContent = t || "";
+    }
+    function getName(){return (document.getElementById("name").value||"").trim();}
+    function div(cls){const d=document.createElement("div"); d.className=cls; return d;}
+
+    // 表示ウィンドウの開始日（今日 or 今日+7）
+    function windowStartDate(){
+      const base=today0();
+      return addDays(base, windowIndex*7);
+    }
+    // 週バーの表示は “MM/DD 〜 MM/DD”（年なし・ゼロ埋めなし）
     function setWeekBar(){
-      const base=addDays(new Date(),weekIndex*7);
-      const ws=startOfWeek(base),we=addDays(ws,6);
-      document.getElementById("range").textContent=`${fmtMDNoPad(ws)} 〜 ${fmtMDNoPad(we)}`;
-      document.getElementById("prevWeek").disabled=(weekIndex<=WEEK_MIN);
-      document.getElementById("nextWeek").disabled=(weekIndex>=WEEK_MAX);
+      const ws = windowStartDate();
+      const we = addDays(ws, 6);
+      document.getElementById("range").textContent = `${fmtMDNoPad(ws)} 〜 ${fmtMDNoPad(we)}`;
+      document.getElementById("prevWeek").disabled = (windowIndex<=WEEK_MIN);
+      document.getElementById("nextWeek").disabled = (windowIndex>=WEEK_MAX);
+    }
+
+    // 両週のスロットを結合
+    function mergedSlots(){
+      return [...(slotsWeek0||[]), ...(slotsWeek1||[])];
     }
 
     function render(){
-      const grid=document.getElementById("grid");grid.innerHTML="";
-      const rangeStart=new Date();rangeStart.setHours(0,0,0,0);
-      const rangeEnd=new Date(rangeStart);rangeEnd.setDate(rangeEnd.getDate()+14);
-      const base=addDays(new Date(),weekIndex*7);
-      const ws=startOfWeek(base);
-      const days=[];for(let i=0;i<7;i++){const d=addDays(ws,i);if(d>=rangeStart&&d<rangeEnd)days.push(d);}
-      grid.style.gridTemplateColumns=`48px repeat(${days.length},1fr)`;
+      const grid=document.getElementById("grid"); grid.innerHTML="";
 
+      // 表示範囲: 今日〜今日+13日（固定）
+      const rangeStart = today0();
+      const rangeEnd   = addDays(rangeStart, 14);
+
+      // ウィンドウ: windowIndex*7 から 7日分
+      const winStart = windowStartDate();
+      const days = [];
+      for(let i=0;i<7;i++){
+        const d = addDays(winStart, i);
+        if(d>=rangeStart && d<rangeEnd) days.push(d);
+      }
+      grid.style.gridTemplateColumns = `44px repeat(${days.length},1fr)`;
+
+      // header: 曜日
       grid.appendChild(div("cell th"));
       days.forEach(d=>{
-        const c=div("cell th");c.innerHTML=`<div class="dow">${wdayJP(d.getDay())}</div>`;
-        if(d.getDay()==0)c.classList.add("sun");if(d.getDay()==6)c.classList.add("sat");
+        const c=div("cell th");
+        c.innerHTML=`<div class="dow">${wdayJP(d.getDay())}</div>`;
+        if(d.getDay()==0)c.classList.add("sun"); if(d.getDay()==6)c.classList.add("sat");
         grid.appendChild(c);
       });
 
+      // header: 日付（9/1）
       grid.appendChild(div("cell th"));
       days.forEach(d=>{
-        const c=div("cell th");c.innerHTML=`<div class="date">${fmtMDNoPad(d)}</div>`;
-        if(d.getDay()==0)c.classList.add("sun");if(d.getDay()==6)c.classList.add("sat");
+        const c=div("cell th");
+        c.innerHTML=`<div class="date">${fmtMDNoPad(d)}</div>`;
+        if(d.getDay()==0)c.classList.add("sun"); if(d.getDay()==6)c.classList.add("sat");
         grid.appendChild(c);
       });
 
+      // スロットマップ作成（両週をマージ）
       const slotMap=new Map();
-      weekSlots.forEach(s=>{const dt=new Date(s.startIso);slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`,s.startIso);});
-      const now=new Date();now.setSeconds(0,0);
+      mergedSlots().forEach(s=>{
+        const dt=new Date(s.startIso);
+        slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso);
+      });
+      const now=new Date(); now.setSeconds(0,0);
 
+      // 本体
       TIMES.forEach(time=>{
-        grid.appendChild(div("cell timecell")).textContent=time;
+        const tcell=div("cell timecell"); tcell.textContent=time; grid.appendChild(tcell);
         days.forEach(d=>{
           const key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
-          const iso=slotMap.get(key);const cell=div("cell");
-          if(iso&&new Date(iso)>=now){
+          const iso=slotMap.get(key);
+          const cell=div("cell");
+          if(iso && new Date(iso)>=now){
             const btn=document.createElement("button");
-            btn.className="ok";btn.type="button";btn.dataset.iso=iso;
+            btn.className="ok"; btn.type="button"; btn.dataset.iso=iso;
             btn.innerHTML="<span class='ring'></span>";
             btn.addEventListener("click",()=>{
               document.querySelectorAll(".ok.selected").forEach(el=>el.classList.remove("selected"));
-              btn.classList.add("selected");selectedIso=iso;
+              btn.classList.add("selected"); selectedIso=iso;
               document.getElementById("calErr").style.display="none";
               document.getElementById("calGroup").classList.remove("invalid");
             });
             cell.appendChild(btn);
           }else{
-            const ng=div("ngbox");ng.textContent="×";cell.appendChild(ng);
+            const ng=div("ngbox"); ng.textContent="×"; cell.appendChild(ng);
           }
           grid.appendChild(cell);
         });
       });
     }
 
-    async function fetchWeek(){
+    // 両週データを取得（常に week=0 と week=1 を取得して表示は“今日起点”で切り出し）
+    async function fetchWeeks(){
       setWeekBar();
       selectedIso=null;
       document.getElementById("calErr").style.display="none";
       document.getElementById("calGroup").classList.remove("invalid");
-      const res=await fetch(`${API_BASE}/available?week=${weekIndex}`);
-      const j=await res.json();
-      weekSlots=j.slots||[];
+
+      const [r0, r1] = await Promise.all([
+        fetch(`${API_BASE}/available?week=0`).then(r=>r.json()).catch(()=>({slots:[]})),
+        fetch(`${API_BASE}/available?week=1`).then(r=>r.json()).catch(()=>({slots:[]})),
+      ]);
+      slotsWeek0 = r0.slots||[];
+      slotsWeek1 = r1.slots||[];
       render();
     }
 
-    document.getElementById("prevWeek").onclick=()=>{if(weekIndex>WEEK_MIN){weekIndex--;fetchWeek();}};
-    document.getElementById("nextWeek").onclick=()=>{if(weekIndex<WEEK_MAX){weekIndex++;fetchWeek();}};
+    // ナビ
+    document.getElementById("prevWeek").onclick=()=>{ if(windowIndex>WEEK_MIN){ windowIndex--; fetchWeeks(); } };
+    document.getElementById("nextWeek").onclick=()=>{ if(windowIndex<WEEK_MAX){ windowIndex++; fetchWeeks(); } };
 
+    // 予約
     document.getElementById("confirmBtn").onclick=async()=>{
       const btn=document.getElementById("confirmBtn");
-      let bad=false;const name=getName();
+      let bad=false; const name=getName();
+
       if(!name){
         document.getElementById("name").classList.add("error");
         document.getElementById("nameErr").style.display="block";
@@ -217,7 +272,6 @@
       }
       if(bad) return;
 
-      // ローディング状態
       const originalText=btn.textContent;
       btn.textContent="送信中...";
       btn.disabled=true;
@@ -229,39 +283,39 @@
           body:JSON.stringify({action:"book",startIso:selectedIso,name,lineUserId})
         });
         const j=await res.json();
+
         if(j.ok){
           toast("予約を受け付けました。LINEに確認メッセージを送ります。");
-          fetchWeek();
+          await fetchWeeks();
           if(liff.isInClient&&liff.isInClient()) setTimeout(()=>liff.closeWindow(),600);
         }else{
-          // エラー種別に応じてメッセージ
-          if(j.error === 'already_booked'){
-            toast("無料相談はお一人1回までです。再度の予約をご希望の場合はお問い合わせください。");
-          }else if(j.error === 'time_conflict'){
-            toast("その枠は埋まっています。別の時間をお選びください。");
-          }else if(j.error === 'time_policy'){
-            toast("選択した時間帯は予約対象外です。");
+          if(j.error==='already_booked'){
+            toast("無料相談はお１人様１回までです。<br>再度の予約をご希望の場合はお問い合わせください。");
           }else{
-            toast("予約に失敗しました。しばらくしてからお試しください。");
+            toast("その枠は埋まっています。");
           }
-          fetchWeek();
+          await fetchWeeks();
         }
       }catch(e){
-        toast("通信エラーが発生しました。ネットワークをご確認ください。");
+        console.error(e);
+        toast("通信エラー");
       }finally{
         btn.textContent=originalText;
         btn.disabled=false;
       }
     };
 
-    fetchWeek();
+    // 初期ロード（両週まとめて）
+    fetchWeeks().catch(e=>{ console.error(e); toast("空き枠の取得に失敗しました。"); });
+
+    // LIFFプロフィールで氏名初期化
     (async()=>{try{
       await liff.init({liffId:LIFF_ID});
-      if(!liff.isLoggedIn()){liff.login();return;}
+      if(!liff.isLoggedIn()){ liff.login(); return; }
       const prof=await liff.getProfile();
       document.getElementById("name").value=prof.displayName||"";
       lineUserId=prof.userId||null;
-    }catch(e){console.error(e)}})();
+    }catch(e){ /* no-op */ }})();
   })();
   </script>
 </body>
