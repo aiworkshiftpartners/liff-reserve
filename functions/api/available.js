@@ -1,4 +1,4 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbxaETOZw-tyBHaSlcpSVrmm522P6K0gFVRUJlVgxxtBkxWPqbrgUZH8iZSG1Ac1r7o/exec"; // 例: https://script.google.com/macros/s/AKfycb.../exec
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbx7WB0f7IwU6YBXKWZlYnhAGMD97QqwZZMUtTK5jTH-vL-N1QiqR_khOwHtQ5RDZ5Em/exec"; // 例: https://script.google.com/macros/s/AKfycb.../exec
 
 const CORS = {
   "access-control-allow-origin": "*",
