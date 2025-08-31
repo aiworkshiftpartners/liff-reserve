@@ -15,7 +15,15 @@
     .card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 
     h1{margin:0 0 10px;font-size:22px}
-    .desc{font-size:14px;margin:0 0 18px;color:#556;line-height:1.45}
+    .desc{
+  font-size:12px;       /* ← 小さめに */
+  margin:0 0 12px;
+  color:#888;           /* ← 薄いグレーに */
+  line-height:1.2;      /* ← 行間を詰めて1行で収まるように */
+  white-space:nowrap;   /* ← 強制的に折り返さない */
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
     .section{max-width:100%;}
     .section--name{margin-bottom:24px;}
@@ -64,7 +72,7 @@
   <div class="wrap">
     <div class="card">
       <h1>無料相談予約フォーム</h1>
-      <p class="desc">お名前を入力し、希望の日付・時間を選択してください。</p>
+      <p class="desc">お名前を入力し、ご希望の日付・時間を選択してください。</p>
 
       <div class="section section--name">
         <label for="name">お名前 <span class="req">*</span></label>
