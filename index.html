@@ -19,17 +19,21 @@
     body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111;line-height:1.8}
     .wrap{min-height:100%;display:grid;place-items:start center;padding:12px}
     .card{width:100%;max-width:860px;background:#fff;border:1px solid var(--grid-border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);overflow:hidden}
+
     .weekbar{display:flex;align-items:center;justify-content:space-between;background:var(--brand);color:#fff;padding:10px 12px}
     .weekbtn{appearance:none;background:transparent;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer}
     .weekbtn[disabled]{opacity:.45;cursor:not-allowed}
     .range{font-weight:800;font-size:clamp(17px,4.5vw,21px);letter-spacing:.5px}
+
     .inner{padding:14px 14px 16px}
-    .help{font-size:12px;color:var(--muted);margin:0 0 8px}
-    label{font-size:13px;font-weight:700}
+    label{font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+    .req{color:#ef4444;font-weight:900}
     .name{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;margin:6px 0 12px}
+
     .cal{border:1px solid var(--grid-border);border-radius:10px;overflow:hidden}
     .grid{display:grid;grid-template-columns: 56px repeat(7, minmax(0,1fr))}
     .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center}
+
     .th{background:#f5f7fa;font-weight:700;padding:6px}
     .dow{font-size:12px}
     .date{font-size:13px}
@@ -37,17 +41,22 @@
     .sun .dow,.sun .date{color:var(--sun-fg)}
     .satcol{background:var(--sat-bg)}
     .suncol{background:var(--sun-bg)}
+
     .timecell{background:#fafafa;font-size:12px;font-weight:700;padding:6px}
+
     .ok{position:relative;cursor:pointer;border:0;background:transparent;width:100%;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .05s, box-shadow .15s}
     .ok .ring{width:24px;height:24px;border-radius:999px;border:3px solid var(--brand);background:transparent;box-sizing:border-box}
     .ok:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
     .ok.selected .ring{background:var(--brand)}
     .ok.selected{transform:scale(1.06)}
     .ok.selected::after{content:'';position:absolute;inset:-3px;border-radius:12px;box-shadow:0 0 0 3px rgba(26,46,68,.18)}
-    .ngbox{width:100%;height:44px;border-radius:10px;background:var(--gray);opacity:.9;display:flex;align-items:center;justify-content:center;font-weight:700;color:#999}
+
+    .ngbox{width:100%;height:44px;border-radius:10px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-weight:900;color:#777}
+
     .confirm{display:flex;gap:10px;margin-top:12px}
     #confirmBtn{flex:1;padding:12px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
     #confirmBtn[disabled]{opacity:.55;cursor:not-allowed}
+
     @media (max-width: 480px){
       .grid{grid-template-columns: 48px repeat(7, minmax(0,1fr))}
       .ok,.ngbox{height:40px}
@@ -66,7 +75,7 @@
         <button id="nextWeek" class="weekbtn" aria-label="次の週">›</button>
       </div>
       <div class="inner">
-        <label for="name">お名前（必須・編集可）</label>
+        <label for="name">お名前 <span class="req" aria-hidden="true">*</span></label>
         <input id="name" class="name" type="text" placeholder="お名前を入力" required />
         <div class="cal"><div id="grid" class="grid"></div></div>
         <div class="confirm">
@@ -76,6 +85,7 @@
       </div>
     </div>
   </div>
+
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js" defer></script>
   <script>
   (function(){
@@ -83,8 +93,11 @@
     const API_BASE = `${location.origin}/api`;
     const WEEK_MIN = 0, WEEK_MAX = 1;
     let weekIndex = 0;
+
     const TIMES=[]; for(let h=8; h<=21; h++){ TIMES.push(`${pad(h)}:00`); if(h!==21) TIMES.push(`${pad(h)}:30`); }
+
     let lineUserId=null, selectedIso=null, weekSlots=[];
+
     function pad(n){return (n<10?'0':'')+n}
     function wdayJP(d){return ['日','月','火','水','木','金','土'][d]}
     function startOfWeek(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
@@ -93,6 +106,7 @@
     function hm(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
     function toast(t){ document.getElementById('toast').textContent = t || '' }
     function getName(){ return (document.getElementById('name').value || '').trim(); }
+
     function setWeekBar(){
       const base = addDays(new Date(), weekIndex*7);
       const ws = startOfWeek(base), we = addDays(ws,6);
@@ -101,48 +115,60 @@
       document.getElementById('prevWeek').disabled = (weekIndex<=WEEK_MIN);
       document.getElementById('nextWeek').disabled = (weekIndex>=WEEK_MAX);
     }
+
     function render(){
       const grid = document.getElementById('grid'); grid.innerHTML='';
       const rangeStart = new Date(); rangeStart.setHours(0,0,0,0);
       const rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeEnd.getDate()+14);
+
       const base = addDays(new Date(), weekIndex*7);
       const ws = startOfWeek(base);
+
       const days=[]; for(let i=0;i<7;i++){ const d=addDays(ws,i); if(d>=rangeStart && d<rangeEnd) days.push(d); }
+
       grid.style.gridTemplateColumns = `56px repeat(${days.length}, minmax(0,1fr))`;
+
       grid.appendChild(div('cell th'));
       days.forEach(d=>{
         const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
         const c = div(cls); c.innerHTML = `<div class="dow">${wdayJP(d.getDay())}</div>`; grid.appendChild(c);
       });
+
       grid.appendChild(div('cell th'));
       days.forEach(d=>{
         const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
         const c = div(cls); c.innerHTML = `<div class="date">${fmtMD(d)}</div>`; grid.appendChild(c);
       });
+
       const slotMap = new Map();
       weekSlots.forEach(s=>{ const dt=new Date(s.startIso); slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso); });
+
       const now = new Date(); now.setSeconds(0,0);
+
       TIMES.forEach(time=>{
         const t = div('cell timecell'); t.textContent=time; grid.appendChild(t);
+
         days.forEach(d=>{
           const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
           const iso = slotMap.get(key);
           const tone = d.getDay()==0?'suncol': d.getDay()==6?'satcol':'';
           const cell = div(`cell ${tone}`);
+
           if(iso){
             const isPast = new Date(iso) < now;
-            const btn = document.createElement('button');
-            btn.className='ok'; btn.type='button'; btn.dataset.iso=iso;
-            const ring = document.createElement('span'); ring.className='ring'; btn.appendChild(ring);
-            if(isPast){ btn.disabled=true; btn.style.opacity=.45; btn.style.cursor='not-allowed'; }
-            else{
+            if(isPast){
+              const ng=div('ngbox'); ng.textContent='×'; cell.appendChild(ng);
+            }else{
+              const btn = document.createElement('button');
+              btn.className='ok'; btn.type='button'; btn.dataset.iso=iso;
+              const ring = document.createElement('span'); ring.className='ring'; btn.appendChild(ring);
               btn.addEventListener('click', ()=>{
                 document.querySelectorAll('.ok.selected').forEach(el=>{ el.classList.remove('selected'); });
                 btn.classList.add('selected'); selectedIso = iso;
                 document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
               });
+              cell.appendChild(btn);
             }
-            cell.appendChild(btn);
           }else{
             const ng=div('ngbox'); ng.textContent='×'; cell.appendChild(ng);
           }
@@ -150,7 +176,9 @@
         });
       });
     }
+
     function div(cls){ const d=document.createElement('div'); d.className=cls; return d; }
+
     async function fetchWeek(){
       setWeekBar();
       selectedIso=null; document.getElementById('confirmBtn').disabled = true;
@@ -160,11 +188,14 @@
       weekSlots = j.slots || [];
       render();
     }
+
     document.getElementById('prevWeek').addEventListener('click', async ()=>{ if(weekIndex>WEEK_MIN){ weekIndex--; await fetchWeek(); }});
     document.getElementById('nextWeek').addEventListener('click', async ()=>{ if(weekIndex<WEEK_MAX){ weekIndex++; await fetchWeek(); }});
+
     document.getElementById('name').addEventListener('input', ()=>{
       document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
     });
+
     document.getElementById('confirmBtn').addEventListener('click', async ()=>{
       const name = getName(); if(!selectedIso || !name) return;
       try{
@@ -174,13 +205,17 @@
         });
         const j = await res.json();
         if(j.ok){
-          toast('予約を受け付けました。LINEにも確認メッセージを送ります。');
-          weekSlots = weekSlots.filter(s=>s.startIso!==selectedIso); render();
+          weekSlots = weekSlots.filter(s=>s.startIso!==selectedIso);
+          render();
           if(liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 300);
-        }else{ toast('その枠は埋まっています。'); await fetchWeek(); }
+        }else{
+          toast('その枠は埋まっています。'); await fetchWeek();
+        }
       }catch(e){ console.error(e); toast('通信エラー。'); }
     });
+
     fetchWeek().catch(e=>{ console.error(e); toast('空き枠の取得に失敗しました。'); });
+
     (async () => {
       try{
         await liff.init({ liffId: LIFF_ID });
@@ -188,7 +223,7 @@
         const prof = await liff.getProfile();
         document.getElementById('name').value = prof.displayName || '';
         lineUserId = prof.userId || null;
-      }catch(e){ console.warn('LIFF init failed:', e); }
+      }catch(e){ /* no-op */ }
     })();
   })();
   </script>
