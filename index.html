@@ -16,14 +16,14 @@
 
     h1{margin:0 0 10px;font-size:22px}
     .desc{
-  font-size:12px;       /* ← 小さめに */
-  margin:0 0 12px;
-  color:#888;           /* ← 薄いグレーに */
-  line-height:1.2;      /* ← 行間を詰めて1行で収まるように */
-  white-space:nowrap;   /* ← 強制的に折り返さない */
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+      font-size:12px;
+      margin:0 0 12px;
+      color:#888;
+      line-height:1.2;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
 
     .section{max-width:100%;}
     .section--name{margin-bottom:24px;}
@@ -234,11 +234,21 @@
           fetchWeek();
           if(liff.isInClient&&liff.isInClient()) setTimeout(()=>liff.closeWindow(),600);
         }else{
-          toast("その枠は埋まっています。");
+          // エラー種別に応じてメッセージ
+          if(j.error === 'already_booked'){
+            toast("無料相談はお一人1回までです。再度の予約をご希望の場合はお問い合わせください。");
+          }else if(j.error === 'time_conflict'){
+            toast("その枠は埋まっています。別の時間をお選びください。");
+          }else if(j.error === 'time_policy'){
+            toast("選択した時間帯は予約対象外です。");
+          }else{
+            toast("予約に失敗しました。しばらくしてからお試しください。");
+          }
           fetchWeek();
         }
-      }catch(e){toast("通信エラー");}
-      finally{
+      }catch(e){
+        toast("通信エラーが発生しました。ネットワークをご確認ください。");
+      }finally{
         btn.textContent=originalText;
         btn.disabled=false;
       }
