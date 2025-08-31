@@ -1,4 +1,4 @@
-<!-- index.html -->
+<!-- index.html（バリデーション＆説明/常時押せるボタン/選択で赤枠解除） -->
 <!doctype html>
 <html lang="ja">
 <head>
@@ -13,6 +13,7 @@
       --muted:#667085;
       --sat-bg:#eef5ff; --sun-bg:#ffeef0;
       --sat-fg:#2563eb; --sun-fg:#ef4444;
+      --error:#ef4444;
     }
     *,*::before,*::after{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111}
@@ -28,9 +29,15 @@
     .inner{padding:14px 14px 16px}
     label{font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
     .req{color:#ef4444;font-weight:900}
-    .name{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;margin:6px 0 12px}
+    .help{font-size:12px;color:var(--muted);margin:6px 0 12px}
 
+    .name{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;margin:6px 0 12px}
+    .error{border-color:var(--error)!important; box-shadow:0 0 0 2px rgba(239,68,68,.18)!important}
+
+    .cal-wrap{margin-top:8px}
     .cal{border:1px solid var(--grid-border);border-radius:10px;overflow:hidden}
+    .cal.error{border-color:var(--error)!important; box-shadow:0 0 0 2px rgba(239,68,68,.18)!important}
+
     .grid{display:grid;grid-template-columns:56px repeat(7, minmax(0,1fr))}
     .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center}
 
@@ -53,9 +60,6 @@
 
     .confirm{margin-top:12px}
     #confirmBtn{width:100%;padding:12px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
-    #confirmBtn[disabled]{opacity:.55;cursor:not-allowed}
-
-    .help{font-size:12px;color:var(--muted);margin:6px 0 0}
 
     @media (max-width:480px){
       .grid{grid-template-columns:48px repeat(7, minmax(0,1fr))}
@@ -75,11 +79,17 @@
         <button id="nextWeek" class="weekbtn" aria-label="次の週">›</button>
       </div>
       <div class="inner">
-        <label for="name">お名前 <span class="req">*</span></label>
+        <label for="name">お名前 <span class="req" aria-hidden="true">*</span></label>
         <input id="name" class="name" type="text" placeholder="お名前を入力" required />
-        <div class="cal"><div id="grid" class="grid"></div></div>
+
+        <p class="help">お名前を入力し、日付の<span style="font-weight:700">○</span>から希望の開始時刻を選んで「この日時で予約」を押してください。</p>
+
+        <div class="cal-wrap">
+          <div class="cal" id="calBox"><div id="grid" class="grid"></div></div>
+        </div>
+
         <div class="confirm">
-          <button id="confirmBtn" type="button" disabled>この日時で予約</button>
+          <button id="confirmBtn" type="button">この日時で予約</button>
         </div>
         <p id="toast" class="help" aria-live="polite"></p>
       </div>
@@ -108,10 +118,7 @@
     function getName(){ return (document.getElementById('name').value || '').trim(); }
     function div(cls){ const d=document.createElement('div'); d.className=cls; return d; }
 
-    function updateConfirmBtn(){
-      const nameFilled = !!getName();
-      document.getElementById('confirmBtn').disabled = !(selectedIso && nameFilled);
-    }
+    function clearErrors(){ document.getElementById('name').classList.remove('error'); document.getElementById('calBox').classList.remove('error'); }
 
     function setWeekBar(){
       const base = addDays(new Date(), weekIndex*7);
@@ -132,21 +139,26 @@
       const days=[]; for(let i=0;i<7;i++){ const d=addDays(ws,i); if(d>=rangeStart && d<rangeEnd) days.push(d); }
       grid.style.gridTemplateColumns = `56px repeat(${days.length}, minmax(0,1fr))`;
 
+      // header: 曜日
       grid.appendChild(div('cell th'));
       days.forEach(d=>{
         const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
         const c = div(cls); c.innerHTML = `<div class="dow">${wdayJP(d.getDay())}</div>`; grid.appendChild(c);
       });
+      // header: 日付
       grid.appendChild(div('cell th'));
       days.forEach(d=>{
         const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
         const c = div(cls); c.innerHTML = `<div class="date">${fmtMD(d)}</div>`; grid.appendChild(c);
       });
 
+      // slotMap
       const slotMap = new Map();
       weekSlots.forEach(s=>{ const dt=new Date(s.startIso); slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso); });
+
       const now = new Date(); now.setSeconds(0,0);
 
+      // body
       TIMES.forEach(time=>{
         const t = div('cell timecell'); t.textContent=time; grid.appendChild(t);
         days.forEach(d=>{
@@ -166,7 +178,8 @@
               btn.addEventListener('click', ()=>{
                 document.querySelectorAll('.ok.selected').forEach(el=>el.classList.remove('selected'));
                 btn.classList.add('selected'); selectedIso = iso;
-                updateConfirmBtn();
+                // カレンダーのエラーは解除
+                document.getElementById('calBox').classList.remove('error');
               });
               cell.appendChild(btn);
             }
@@ -180,16 +193,24 @@
 
     async function fetchWeek(){
       setWeekBar();
-      selectedIso=null; updateConfirmBtn();
       const res = await fetch(`${API_BASE}/available?week=${weekIndex}`, { headers:{accept:'application/json'} });
       const j = await res.json(); weekSlots = j.slots || []; render();
     }
 
+    // イベント
     document.getElementById('prevWeek').addEventListener('click', async ()=>{ if(weekIndex>WEEK_MIN){ weekIndex--; await fetchWeek(); }});
     document.getElementById('nextWeek').addEventListener('click', async ()=>{ if(weekIndex<WEEK_MAX){ weekIndex++; await fetchWeek(); }});
-    document.getElementById('name').addEventListener('input', updateConfirmBtn);
+    document.getElementById('name').addEventListener('input', ()=>{ if(getName()) document.getElementById('name').classList.remove('error'); });
+
+    // 送信（常に押せる → ここでバリデーション）
     document.getElementById('confirmBtn').addEventListener('click', async ()=>{
-      const name = getName(); if(!selectedIso || !name) return;
+      clearErrors();
+      const name = getName();
+      let bad = false;
+      if(!name){ document.getElementById('name').classList.add('error'); bad = true; }
+      if(!selectedIso){ document.getElementById('calBox').classList.add('error'); bad = true; }
+      if(bad){ toast('お名前と日付（○）を選択してください。'); return; }
+
       try{
         const res = await fetch(`${API_BASE}/book`, {
           method:'POST', headers:{'Content-Type':'application/json'},
@@ -197,24 +218,27 @@
         });
         const j = await res.json();
         if(j.ok){
+          toast("予約を受け付けました。LINEに確認メッセージを送ります。");
           weekSlots = weekSlots.filter(s=>s.startIso!==selectedIso);
           render();
-          toast("予約を受け付けました。LINEに確認メッセージを送ります。");
-          if(liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 500);
-        }else{ toast('その枠は埋まっています。'); await fetchWeek(); }
-      }catch(e){ console.error(e); toast('通信エラー。'); }
+          if(liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 600);
+        }else{
+          toast('その枠は埋まっています。別の時間をお選びください。');
+          await fetchWeek();
+        }
+      }catch(e){ console.error(e); toast('通信エラー。時間をおいて再度お試しください。'); }
     });
 
+    // 初期ロード
     fetchWeek().catch(e=> toast('空き枠の取得に失敗しました。'));
 
+    // LIFF初期化：表示名を初期値（編集可）
     (async () => {
       try{
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         const prof = await liff.getProfile();
         document.getElementById('name').value = prof.displayName || '';
-        lineUserId = prof.userId || null;
-        updateConfirmBtn();
       }catch(e){}
     })();
   })();
