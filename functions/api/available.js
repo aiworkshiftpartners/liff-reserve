@@ -1,4 +1,4 @@
-const GAS_BASE = "https://script.google.com/macros/s/AKfycbyJei1maZIYXLuIC38nlTQE0hBH3qNAjlqfqLi8S9euOEuGrmxc4FkXzHvuCVgXUa62/exec"; // ← あなたの /exec
+const GAS_BASE = "https://script.google.com/macros/s/AKfycbwDURb0NsMHmFVDb-M7yqabh2GHc2p-67h2EijzA5hgOVDCT9-3EbDJd_-_D8cS0faI/exec"; // GAS /exec
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -10,7 +10,6 @@ const CORS = {
 export async function onRequestGet({ request }) {
   try {
     const url = new URL(request.url);
-    // /api/available?week=0.. を GAS ?path=available&week=.. に中継
     const week = url.searchParams.get("week") ?? "0";
     const upstream = await fetch(`${GAS_BASE}?path=available&week=${encodeURIComponent(week)}`);
     const text = await upstream.text();
