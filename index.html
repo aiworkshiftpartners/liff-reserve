@@ -7,7 +7,7 @@
   <title>無料相談の予約（LINE限定）</title>
   <style>
     :root{
-      --brand:#1a2e44;          /* ボタン色 = 週バー色 = ○の色（好みで変更） */
+      --brand:#1a2e44;
       --grid-border:#e5e7eb;
       --muted:#667085;
       --gray:#f2f4f7;
@@ -19,50 +19,35 @@
     body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111;line-height:1.8}
     .wrap{min-height:100%;display:grid;place-items:start center;padding:12px}
     .card{width:100%;max-width:860px;background:#fff;border:1px solid var(--grid-border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);overflow:hidden}
-
-    /* 週ナビ（年は出さない・背景はボタンと同色） */
     .weekbar{display:flex;align-items:center;justify-content:space-between;background:var(--brand);color:#fff;padding:10px 12px}
     .weekbtn{appearance:none;background:transparent;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer}
     .weekbtn[disabled]{opacity:.45;cursor:not-allowed}
     .range{font-weight:800;font-size:clamp(17px,4.5vw,21px);letter-spacing:.5px}
-
     .inner{padding:14px 14px 16px}
     .help{font-size:12px;color:var(--muted);margin:0 0 8px}
     label{font-size:13px;font-weight:700}
     .name{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;margin:6px 0 12px}
-
     .cal{border:1px solid var(--grid-border);border-radius:10px;overflow:hidden}
     .grid{display:grid;grid-template-columns: 56px repeat(7, minmax(0,1fr))}
     .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center}
-
-    /* ヘッダ2段（曜日→日付） */
     .th{background:#f5f7fa;font-weight:700;padding:6px}
     .dow{font-size:12px}
     .date{font-size:13px}
     .sat .dow,.sat .date{color:var(--sat-fg)}
     .sun .dow,.sun .date{color:var(--sun-fg)}
-
-    /* 列トーン（本体セルを淡色） */
     .satcol{background:var(--sat-bg)}
     .suncol{background:var(--sun-bg)}
-
     .timecell{background:#fafafa;font-size:12px;font-weight:700;padding:6px}
-
-    /* ○ボタン（輪のみ表示／クリックで反転） */
     .ok{position:relative;cursor:pointer;border:0;background:transparent;width:100%;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .05s, box-shadow .15s}
     .ok .ring{width:24px;height:24px;border-radius:999px;border:3px solid var(--brand);background:transparent;box-sizing:border-box}
     .ok:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
     .ok.selected .ring{background:var(--brand)}
     .ok.selected{transform:scale(1.06)}
     .ok.selected::after{content:'';position:absolute;inset:-3px;border-radius:12px;box-shadow:0 0 0 3px rgba(26,46,68,.18)}
-
-    /* 空きなし（クリック不可の灰色） */
-    .ngbox{width:100%;height:44px;border-radius:10px;background:var(--gray);opacity:.9}
-
+    .ngbox{width:100%;height:44px;border-radius:10px;background:var(--gray);opacity:.9;display:flex;align-items:center;justify-content:center;font-weight:700;color:#999}
     .confirm{display:flex;gap:10px;margin-top:12px}
     #confirmBtn{flex:1;padding:12px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
     #confirmBtn[disabled]{opacity:.55;cursor:not-allowed}
-
     @media (max-width: 480px){
       .grid{grid-template-columns: 48px repeat(7, minmax(0,1fr))}
       .ok,.ngbox{height:40px}
@@ -75,21 +60,15 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <!-- 年なし週バー（背景=ボタン色） -->
       <div class="weekbar">
         <button id="prevWeek" class="weekbtn" aria-label="前の週">‹</button>
         <div id="range" class="range">–</div>
         <button id="nextWeek" class="weekbtn" aria-label="次の週">›</button>
       </div>
-
       <div class="inner">
-        <p class="help">○をタップ → 「この日時で予約」。表示は<strong>今日から2週間</strong>のみです。</p>
-
-        <label for="name">お名前（編集可）</label>
-        <input id="name" class="name" type="text" placeholder="お名前を入力" />
-
+        <label for="name">お名前（必須・編集可）</label>
+        <input id="name" class="name" type="text" placeholder="お名前を入力" required />
         <div class="cal"><div id="grid" class="grid"></div></div>
-
         <div class="confirm">
           <button id="confirmBtn" type="button" disabled>この日時で予約</button>
         </div>
@@ -97,23 +76,15 @@
       </div>
     </div>
   </div>
-
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js" defer></script>
   <script>
   (function(){
-    const LIFF_ID  = "2007979122-nWPjgJGA";    // ← あなたの LIFF ID
-    const API_BASE = `${location.origin}/api`; // Cloudflare Pages Functions 経由
-
-    // 表示は今週(0)と来週(1)だけ
+    const LIFF_ID  = "2007979122-nWPjgJGA";
+    const API_BASE = `${location.origin}/api`;
     const WEEK_MIN = 0, WEEK_MAX = 1;
     let weekIndex = 0;
-
-    // 8:00〜21:00（30分刻み）
     const TIMES=[]; for(let h=8; h<=21; h++){ TIMES.push(`${pad(h)}:00`); if(h!==21) TIMES.push(`${pad(h)}:30`); }
-
     let lineUserId=null, selectedIso=null, weekSlots=[];
-
-    // utils
     function pad(n){return (n<10?'0':'')+n}
     function wdayJP(d){return ['日','月','火','水','木','金','土'][d]}
     function startOfWeek(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
@@ -122,8 +93,6 @@
     function hm(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
     function toast(t){ document.getElementById('toast').textContent = t || '' }
     function getName(){ return (document.getElementById('name').value || '').trim(); }
-
-    // 週バー（MM/DD 〜 MM/DD）
     function setWeekBar(){
       const base = addDays(new Date(), weekIndex*7);
       const ws = startOfWeek(base), we = addDays(ws,6);
@@ -132,46 +101,27 @@
       document.getElementById('prevWeek').disabled = (weekIndex<=WEEK_MIN);
       document.getElementById('nextWeek').disabled = (weekIndex>=WEEK_MAX);
     }
-
     function render(){
       const grid = document.getElementById('grid'); grid.innerHTML='';
-
-      // 表示レンジ：今日0:00〜14日後0:00（今日含む14日）
       const rangeStart = new Date(); rangeStart.setHours(0,0,0,0);
       const rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeEnd.getDate()+14);
-
       const base = addDays(new Date(), weekIndex*7);
       const ws = startOfWeek(base);
-
-      // 週の中でレンジに入る日だけ使う（レンジ外は列自体非表示）
       const days=[]; for(let i=0;i<7;i++){ const d=addDays(ws,i); if(d>=rangeStart && d<rangeEnd) days.push(d); }
-
-      // 列セット
       grid.style.gridTemplateColumns = `56px repeat(${days.length}, minmax(0,1fr))`;
-
-      // ヘッダ1：曜日
       grid.appendChild(div('cell th'));
       days.forEach(d=>{
         const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
-        const c = div(cls); c.innerHTML = `<div class="dow">${wdayJP(d.getDay())}</div>`;
-        grid.appendChild(c);
+        const c = div(cls); c.innerHTML = `<div class="dow">${wdayJP(d.getDay())}</div>`; grid.appendChild(c);
       });
-
-      // ヘッダ2：日付（同背景）
       grid.appendChild(div('cell th'));
       days.forEach(d=>{
         const cls = ['cell','th', d.getDay()==0?'sun':d.getDay()==6?'sat':''].join(' ').trim();
-        const c = div(cls); c.innerHTML = `<div class="date">${fmtMD(d)}</div>`;
-        grid.appendChild(c);
+        const c = div(cls); c.innerHTML = `<div class="date">${fmtMD(d)}</div>`; grid.appendChild(c);
       });
-
-      // スロットMap
       const slotMap = new Map();
       weekSlots.forEach(s=>{ const dt=new Date(s.startIso); slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso); });
-
       const now = new Date(); now.setSeconds(0,0);
-
-      // 本体
       TIMES.forEach(time=>{
         const t = div('cell timecell'); t.textContent=time; grid.appendChild(t);
         days.forEach(d=>{
@@ -179,33 +129,28 @@
           const iso = slotMap.get(key);
           const tone = d.getDay()==0?'suncol': d.getDay()==6?'satcol':'';
           const cell = div(`cell ${tone}`);
-
           if(iso){
             const isPast = new Date(iso) < now;
             const btn = document.createElement('button');
-            btn.className='ok'; btn.type='button'; btn.dataset.iso=iso; btn.setAttribute('aria-selected','false');
+            btn.className='ok'; btn.type='button'; btn.dataset.iso=iso;
             const ring = document.createElement('span'); ring.className='ring'; btn.appendChild(ring);
-            if(isPast){
-              btn.disabled=true; btn.style.opacity=.45; btn.style.cursor='not-allowed';
-            }else{
+            if(isPast){ btn.disabled=true; btn.style.opacity=.45; btn.style.cursor='not-allowed'; }
+            else{
               btn.addEventListener('click', ()=>{
-                document.querySelectorAll('.ok.selected').forEach(el=>{ el.classList.remove('selected'); el.setAttribute('aria-selected','false'); });
-                btn.classList.add('selected'); btn.setAttribute('aria-selected','true');
-                selectedIso = iso;
+                document.querySelectorAll('.ok.selected').forEach(el=>{ el.classList.remove('selected'); });
+                btn.classList.add('selected'); selectedIso = iso;
                 document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
               });
             }
             cell.appendChild(btn);
           }else{
-            cell.appendChild(div('ngbox')); // 空きなし
+            const ng=div('ngbox'); ng.textContent='×'; cell.appendChild(ng);
           }
           grid.appendChild(cell);
         });
       });
     }
-
     function div(cls){ const d=document.createElement('div'); d.className=cls; return d; }
-
     async function fetchWeek(){
       setWeekBar();
       selectedIso=null; document.getElementById('confirmBtn').disabled = true;
@@ -215,17 +160,11 @@
       weekSlots = j.slots || [];
       render();
     }
-
-    // 週ナビ
     document.getElementById('prevWeek').addEventListener('click', async ()=>{ if(weekIndex>WEEK_MIN){ weekIndex--; await fetchWeek(); }});
     document.getElementById('nextWeek').addEventListener('click', async ()=>{ if(weekIndex<WEEK_MAX){ weekIndex++; await fetchWeek(); }});
-
-    // 名前が空だと確定不可
     document.getElementById('name').addEventListener('input', ()=>{
       document.getElementById('confirmBtn').disabled = !selectedIso || !getName();
     });
-
-    // 予約POST
     document.getElementById('confirmBtn').addEventListener('click', async ()=>{
       const name = getName(); if(!selectedIso || !name) return;
       try{
@@ -236,20 +175,12 @@
         const j = await res.json();
         if(j.ok){
           toast('予約を受け付けました。LINEにも確認メッセージを送ります。');
-          weekSlots = weekSlots.filter(s=>s.startIso!==selectedIso);
-          render();
+          weekSlots = weekSlots.filter(s=>s.startIso!==selectedIso); render();
           if(liff.isInClient && liff.isInClient()) setTimeout(()=> liff.closeWindow(), 300);
-        }else{
-          toast('その枠は埋まっています。別の時間をお選びください。');
-          await fetchWeek();
-        }
-      }catch(e){ console.error(e); toast('通信エラー。時間をおいて再度お試しください。'); }
+        }else{ toast('その枠は埋まっています。'); await fetchWeek(); }
+      }catch(e){ console.error(e); toast('通信エラー。'); }
     });
-
-    // 初期：今週
     fetchWeek().catch(e=>{ console.error(e); toast('空き枠の取得に失敗しました。'); });
-
-    // LIFF 初期化（名前の初期値だけ入れて編集は自由）
     (async () => {
       try{
         await liff.init({ liffId: LIFF_ID });
