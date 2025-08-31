@@ -2,177 +2,175 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="robots" content="noindex" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>無料相談予約フォーム</title>
   <style>
     :root{
-      --brand:#1a2e44;
-      --grid-border:#e5e7eb;
-      --muted:#667085;
-      --sat-bg:#eef5ff; --sun-bg:#ffeef0;
+      --brand:#1a2e44; --muted:#667085;
       --sat-fg:#2563eb; --sun-fg:#ef4444;
+      --sat-bg:#eef5ff; --sun-bg:#ffeef0;
       --error:#ef4444;
     }
-    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:#fafafa;color:#111}
+    body{margin:0;font-family:system-ui,"Noto Sans JP",sans-serif;background:#fafafa}
     .wrap{max-width:860px;margin:0 auto;padding:16px}
-    .card{background:#fff;border:1px solid var(--grid-border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);overflow:hidden;padding:20px}
+    .card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    h1{margin:0 0 10px;font-size:22px}
+    .desc{font-size:14px;margin:0 0 18px;color:#444}
 
-    h1{margin:0 0 8px;font-size:22px;font-weight:800}
-    .desc{font-size:14px;color:#444;margin:0 0 18px}
-
-    label{font-size:14px;font-weight:700;display:block;margin-bottom:4px}
+    label{font-weight:700;font-size:14px;display:block;margin-bottom:4px}
     .req{color:var(--error)}
-    .name{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:4px}
-    .error{border-color:var(--error)!important}
-    .err-msg{color:var(--error);font-size:12px;margin:0 0 10px;display:none}
+    .name{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px}
+    .name.error{border-color:var(--error)}
+    .err-msg{color:var(--error);font-size:12px;margin:4px 0 10px;display:none}
 
-    /* 週バー */
-    .weekbar{display:flex;align-items:center;justify-content:space-between;background:var(--brand);color:#fff;padding:6px 10px;margin:10px 0}
-    .weekbtn{appearance:none;background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer}
+    .weekbar{display:flex;justify-content:space-between;align-items:center;background:var(--brand);color:#fff;padding:6px 10px;margin:12px 0}
+    .weekbtn{background:none;border:0;color:#fff;font-size:18px;cursor:pointer}
     .weekbtn[disabled]{opacity:.4;cursor:not-allowed}
-    .range{font-weight:700;font-size:15px}
+    .range{font-weight:700}
 
-    .cal{border:1px solid var(--grid-border);border-radius:10px;overflow:hidden}
-    .cal.error{border-color:var(--error)!important}
-    .grid{display:grid;grid-template-columns:56px repeat(7, minmax(0,1fr))}
-    .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center}
-    .th{background:#f5f7fa;font-weight:700;padding:6px}
+    .grid{display:grid;grid-template-columns:56px repeat(7,1fr)}
+    .cell{border:1px solid #eee;display:flex;align-items:center;justify-content:center;height:40px}
+    .th{background:#f5f7fa;font-weight:700}
     .dow{font-size:12px}
     .date{font-size:13px}
-    .sat .dow,.sat .date{color:var(--sat-fg)}
-    .sun .dow,.sun .date{color:var(--sun-fg)}
-    .satcol{background:var(--sat-bg)}
-    .suncol{background:var(--sun-bg)}
-    .timecell{background:#fafafa;font-size:12px;font-weight:700;padding:6px}
+    .sat .dow,.sat .date{color:var(--sat-fg)} .sun .dow,.sun .date{color:var(--sun-fg)}
+    .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
-    /* ○ */
-    .ok{cursor:pointer;border:0;background:transparent;width:100%;height:40px;display:flex;align-items:center;justify-content:center}
-    .ok .ring{width:20px;height:20px;border-radius:999px;border:3px solid var(--brand);background:transparent}
+    .ok{cursor:pointer;border:0;background:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+    .ok .ring{width:20px;height:20px;border:3px solid var(--brand);border-radius:999px}
     .ok.selected .ring{background:var(--brand)}
+    .ngbox{font-weight:900;color:#777}
 
-    /* × */
-    .ngbox{width:100%;height:40px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#777}
-
-    .confirm{margin-top:14px}
-    #confirmBtn{width:100%;padding:12px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
-    .help{font-size:12px;color:var(--muted);margin:6px 0 0}
+    #confirmBtn{width:100%;margin-top:14px;padding:12px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer}
+    .help{font-size:12px;color:var(--muted);margin-top:6px}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>無料相談予約フォーム</h1>
-      <p class="desc">お名前を入力し、希望の日付・時間（○）を選択して予約してください。</p>
+      <p class="desc">お名前を入力し、希望の日付・時間を選択してください。</p>
 
       <label for="name">お名前 <span class="req">*</span></label>
-      <input id="name" class="name" type="text" placeholder="お名前を入力" required />
+      <input id="name" class="name" type="text" placeholder="お名前を入力" />
       <div id="nameErr" class="err-msg">お名前を入力してください</div>
 
       <div class="weekbar">
         <button id="prevWeek" class="weekbtn">‹</button>
-        <div id="range" class="range">–</div>
+        <div id="range">–</div>
         <button id="nextWeek" class="weekbtn">›</button>
       </div>
 
-      <div class="cal" id="calBox"><div id="grid" class="grid"></div></div>
+      <div class="grid" id="grid"></div>
       <div id="calErr" class="err-msg">日付を選択してください</div>
 
-      <div class="confirm">
-        <button id="confirmBtn" type="button">この日時で予約</button>
-      </div>
-      <p id="toast" class="help" aria-live="polite"></p>
+      <button id="confirmBtn">この日時で予約</button>
+      <p id="toast" class="help"></p>
     </div>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
   (function(){
-    const LIFF_ID  = "2007979122-nWPjgJGA";
-    const API_BASE = `${location.origin}/api`;
-    const WEEK_MIN = 0, WEEK_MAX = 1;
-    let weekIndex = 0;
-    let lineUserId=null, selectedIso=null, weekSlots=[];
+    const LIFF_ID="2007979122-nWPjgJGA";       // あなたのLIFF ID
+    const API_BASE=`${location.origin}/api`;   // CF Functions 経由
+    const WEEK_MIN=0,WEEK_MAX=1; let weekIndex=0;
+    let lineUserId=null,selectedIso=null,weekSlots=[];
 
-    const TIMES=[]; for(let h=8; h<=21; h++){ TIMES.push(`${pad(h)}:00`); if(h!==21) TIMES.push(`${pad(h)}:30`); }
+    // 時間枠: 8:00〜21:00（30分刻み）
+    const TIMES=[];for(let h=8;h<=21;h++){TIMES.push(pad(h)+":00");if(h!==21)TIMES.push(pad(h)+":30");}
 
-    function pad(n){return (n<10?'0':'')+n}
-    function wdayJP(d){return ['日','月','火','水','木','金','土'][d]}
-    function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x;}
-    function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
-    function fmtMD(d){return `${d.getMonth()+1}/${pad(d.getDate())}`}
-    function hm(d){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
-    function toast(t){document.getElementById('toast').textContent=t||''}
-    function getName(){return (document.getElementById('name').value||'').trim();}
-    function div(cls){const d=document.createElement('div');d.className=cls;return d;}
+    // util
+    function pad(n){return (n<10?"0":"")+n}
+    function wdayJP(d){return["日","月","火","水","木","金","土"][d]}
+    function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x}
+    function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+    function fmtMD(d){return `${d.getMonth()+1}/${pad(d.getDate())}`} function hm(d){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
+    function toast(t){document.getElementById("toast").textContent=t||""}
+    function getName(){return (document.getElementById("name").value||"").trim();}
+    function div(cls){const d=document.createElement("div");d.className=cls;return d;}
 
     function setWeekBar(){
       const base=addDays(new Date(),weekIndex*7);
-      const ws=startOfWeek(base), we=addDays(ws,6);
-      document.getElementById('range').textContent=`${pad(ws.getMonth()+1)}/${pad(ws.getDate())} 〜 ${pad(we.getMonth()+1)}/${pad(we.getDate())}`;
-      document.getElementById('prevWeek').disabled=(weekIndex<=WEEK_MIN);
-      document.getElementById('nextWeek').disabled=(weekIndex>=WEEK_MAX);
+      const ws=startOfWeek(base),we=addDays(ws,6);
+      document.getElementById("range").textContent=`${pad(ws.getMonth()+1)}/${pad(ws.getDate())} 〜 ${pad(we.getMonth()+1)}/${pad(we.getDate())}`;
+      document.getElementById("prevWeek").disabled=(weekIndex<=WEEK_MIN);
+      document.getElementById("nextWeek").disabled=(weekIndex>=WEEK_MAX);
     }
 
     function render(){
-      const grid=document.getElementById('grid'); grid.innerHTML='';
-      const rangeStart=new Date(); rangeStart.setHours(0,0,0,0);
-      const rangeEnd=new Date(rangeStart); rangeEnd.setDate(rangeEnd.getDate()+14);
+      const grid=document.getElementById("grid");grid.innerHTML="";
+      const rangeStart=new Date();rangeStart.setHours(0,0,0,0);
+      const rangeEnd=new Date(rangeStart);rangeEnd.setDate(rangeEnd.getDate()+14);
       const base=addDays(new Date(),weekIndex*7);
       const ws=startOfWeek(base);
-      const days=[];for(let i=0;i<7;i++){const d=addDays(ws,i);if(d>=rangeStart && d<rangeEnd)days.push(d);}
-      grid.style.gridTemplateColumns=`56px repeat(${days.length},minmax(0,1fr))`;
+      const days=[];for(let i=0;i<7;i++){const d=addDays(ws,i);if(d>=rangeStart&&d<rangeEnd)days.push(d);}
+      grid.style.gridTemplateColumns=`56px repeat(${days.length},1fr)`;
 
-      grid.appendChild(div('cell th'));
-      days.forEach(d=>{const c=div('cell th');const cls=d.getDay()==0?'sun':d.getDay()==6?'sat':'';c.classList.add(cls);c.innerHTML=`<div class="dow">${wdayJP(d.getDay())}</div>`;grid.appendChild(c);});
-      grid.appendChild(div('cell th'));
-      days.forEach(d=>{const c=div('cell th');const cls=d.getDay()==0?'sun':d.getDay()==6?'sat':'';c.classList.add(cls);c.innerHTML=`<div class="date">${fmtMD(d)}</div>`;grid.appendChild(c);});
+      // header: 曜日
+      grid.appendChild(div("cell th"));
+      days.forEach(d=>{
+        const c=div("cell th");c.innerHTML=`<div class="dow">${wdayJP(d.getDay())}</div>`;
+        if(d.getDay()==0)c.classList.add("sun");if(d.getDay()==6)c.classList.add("sat");
+        grid.appendChild(c);
+      });
+      // header: 日付
+      grid.appendChild(div("cell th"));
+      days.forEach(d=>{
+        const c=div("cell th");c.innerHTML=`<div class="date">${fmtMD(d)}</div>`;
+        if(d.getDay()==0)c.classList.add("sun");if(d.getDay()==6)c.classList.add("sat");
+        grid.appendChild(c);
+      });
 
-      const slotMap=new Map(); weekSlots.forEach(s=>{const dt=new Date(s.startIso);slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`,s.startIso);});
-      const now=new Date(); now.setSeconds(0,0);
+      // slots
+      const slotMap=new Map();
+      weekSlots.forEach(s=>{const dt=new Date(s.startIso);slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`,s.startIso);});
+      const now=new Date();now.setSeconds(0,0);
 
       TIMES.forEach(time=>{
-        grid.appendChild(div('cell timecell')).textContent=time;
+        grid.appendChild(div("cell timecell")).textContent=time;
         days.forEach(d=>{
           const key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
-          const iso=slotMap.get(key);
-          const tone=d.getDay()==0?'suncol':d.getDay()==6?'satcol':'';
-          const cell=div(`cell ${tone}`);
-          if(iso){
-            if(new Date(iso)<now){const ng=div('ngbox');ng.textContent='×';cell.appendChild(ng);}
-            else{
-              const btn=document.createElement('button');btn.className='ok';btn.type='button';btn.dataset.iso=iso;
-              const ring=document.createElement('span');ring.className='ring';btn.appendChild(ring);
-              btn.addEventListener('click',()=>{document.querySelectorAll('.ok.selected').forEach(el=>el.classList.remove('selected'));btn.classList.add('selected');selectedIso=iso;document.getElementById('calBox').classList.remove('error');document.getElementById('calErr').style.display='none';});
-              cell.appendChild(btn);
-            }
-          }else{const ng=div('ngbox');ng.textContent='×';cell.appendChild(ng);}
+          const iso=slotMap.get(key);const cell=div("cell");
+          if(iso&&new Date(iso)>=now){
+            const btn=document.createElement("button");
+            btn.className="ok";btn.type="button";btn.dataset.iso=iso;
+            btn.innerHTML="<span class='ring'></span>";
+            btn.addEventListener("click",()=>{
+              document.querySelectorAll(".ok.selected").forEach(el=>el.classList.remove("selected"));
+              btn.classList.add("selected");selectedIso=iso;
+              document.getElementById("calErr").style.display="none";
+            });
+            cell.appendChild(btn);
+          }else{
+            const ng=div("ngbox");ng.textContent="×";cell.appendChild(ng);
+          }
           grid.appendChild(cell);
         });
       });
     }
 
-    async function fetchWeek(){
-      setWeekBar(); selectedIso=null;
-      const res=await fetch(`${API_BASE}/available?week=${weekIndex}`); const j=await res.json(); weekSlots=j.slots||[]; render();
-    }
+    async function fetchWeek(){setWeekBar();selectedIso=null;const res=await fetch(`${API_BASE}/available?week=${weekIndex}`);const j=await res.json();weekSlots=j.slots||[];render();}
 
-    document.getElementById('prevWeek').onclick=()=>{if(weekIndex>WEEK_MIN){weekIndex--;fetchWeek();}};
-    document.getElementById('nextWeek').onclick=()=>{if(weekIndex<WEEK_MAX){weekIndex++;fetchWeek();}};
+    document.getElementById("prevWeek").onclick=()=>{if(weekIndex>WEEK_MIN){weekIndex--;fetchWeek();}};
+    document.getElementById("nextWeek").onclick=()=>{if(weekIndex<WEEK_MAX){weekIndex++;fetchWeek();}};
 
-    document.getElementById('confirmBtn').onclick=async()=>{
-      let bad=false; const name=getName(); if(!name){document.getElementById('name').classList.add('error');document.getElementById('nameErr').style.display='block';bad=true;} else {document.getElementById('name').classList.remove('error');document.getElementById('nameErr').style.display='none';}
-      if(!selectedIso){document.getElementById('calBox').classList.add('error');document.getElementById('calErr').style.display='block';bad=true;}
-      else{document.getElementById('calBox').classList.remove('error');document.getElementById('calErr').style.display='none';}
+    // confirm
+    document.getElementById("confirmBtn").onclick=async()=>{
+      let bad=false;const name=getName();
+      if(!name){document.getElementById("name").classList.add("error");document.getElementById("nameErr").style.display="block";bad=true;}
+      else{document.getElementById("name").classList.remove("error");document.getElementById("nameErr").style.display="none";}
+      if(!selectedIso){document.getElementById("calErr").style.display="block";bad=true;}else{document.getElementById("calErr").style.display="none";}
       if(bad)return;
 
-      const res=await fetch(`${API_BASE}/book`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'book',startIso:selectedIso,name,lineUserId})});
+      const res=await fetch(`${API_BASE}/book`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"book",startIso:selectedIso,name,lineUserId})});
       const j=await res.json();
-      if(j.ok){toast("予約を受け付けました。LINEに確認メッセージを送ります。");weekSlots=weekSlots.filter(s=>s.startIso!==selectedIso);render();if(liff.isInClient&&liff.isInClient())setTimeout(()=>liff.closeWindow(),600);}else{toast('その枠は埋まっています。');fetchWeek();}
+      if(j.ok){toast("予約を受け付けました。LINEに確認メッセージを送ります。");fetchWeek();if(liff.isInClient&&liff.isInClient())setTimeout(()=>liff.closeWindow(),600);}
+      else{toast("その枠は埋まっています。");fetchWeek();}
     };
 
-    fetchWeek().catch(()=>toast('空き枠の取得に失敗しました。'));
-    (async()=>{try{await liff.init({liffId:LIFF_ID});if(!liff.isLoggedIn()){liff.login();return;}const prof=await liff.getProfile();document.getElementById('name').value=prof.displayName||'';lineUserId=prof.userId||null;}catch(e){}})();
+    fetchWeek();
+    (async()=>{try{await liff.init({liffId:LIFF_ID});if(!liff.isLoggedIn()){liff.login();return;}const prof=await liff.getProfile();document.getElementById("name").value=prof.displayName||"";lineUserId=prof.userId||null;}catch(e){console.error(e)}})();
   })();
   </script>
 </body>
