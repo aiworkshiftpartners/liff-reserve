@@ -42,7 +42,10 @@
 
     /* 表（下段） */
     .cal{border:1px solid #ddd;border-top:0;border-bottom-left-radius:10px;border-bottom-right-radius:10px;overflow:hidden;margin:0}
-    .grid{display:grid;grid-template-columns:44px repeat(7,1fr)}
+    .grid{
+      display:grid;grid-template-columns:44px repeat(7,1fr);
+      content-visibility:auto; /* 大量セルの描画負荷を軽減 */
+    }
     .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center;height:40px}
     /* 見出し行だけ高さを低く（“曜日”と“日付”） */
     .cell.th{height:30px}
@@ -53,7 +56,7 @@
     .sun .dow,.sun .date{color:var(--sun-fg)}
     .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
-    /* ○ボタン */
+    /* ○ボタン（見た目は同じ、イベントは委譲で拾う） */
     .ok{cursor:pointer;border:0;background:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
     .ok .ring{width:16px;height:16px;border:3px solid var(--brand);border-radius:999px;transition:background .12s ease}
     .ok.selected .ring{background:var(--brand)}
@@ -111,210 +114,278 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
   (function(){
-    const LIFF_ID="2007979122-nWPjgJGA";
-    const API_BASE=`${location.origin}/api`;
+    const LIFF_ID  = "2007979122-nWPjgJGA";
+    const API_BASE = `${location.origin}/api`;
+
+    // DOMキャッシュ
+    const el = {
+      name: document.getElementById("name"),
+      nameErr: document.getElementById("nameErr"),
+      calErr: document.getElementById("calErr"),
+      calGroup: document.getElementById("calGroup"),
+      prev: document.getElementById("prevWeek"),
+      next: document.getElementById("nextWeek"),
+      range: document.getElementById("range"),
+      grid: document.getElementById("grid"),
+      toast: document.getElementById("toast"),
+      confirm: document.getElementById("confirmBtn")
+    };
 
     // 表示は「今日から7日」「+7日」で次の7日（最大2週間）
-    const WEEK_MIN=0, WEEK_MAX=1;
-    let windowIndex=0; // 0: 今日→6日後, 1: 今日+7→今日+13
+    const WEEK_MIN = 0, WEEK_MAX = 1;
+    let windowIndex = 0; // 0: 今日→6日後, 1: 今日+7→今日+13
 
-    let lineUserId=null, selectedIso=null;
-    let slotsWeek0=[], slotsWeek1=[]; // GASの週単位を両方保持
+    let lineUserId = null, selectedIso = null;
+    let slotsWeek0 = [], slotsWeek1 = []; // GASの週単位を両方保持
+    let inFlightController = null;        // fetchキャンセル用
 
     // 時間枠: 8:00〜21:00（30分刻み）
-    const TIMES=[]; for(let h=8;h<=21;h++){ TIMES.push(n2(h)+":00"); if(h!==21) TIMES.push(n2(h)+":30"); }
+    const TIMES = (() => {
+      const arr = [];
+      for (let h = 8; h <= 21; h++) {
+        arr.push(`${n2(h)}:00`);
+        if (h !== 21) arr.push(`${n2(h)}:30`);
+      }
+      return arr;
+    })();
 
     // util
     function n2(n){return (n<10?"0":"")+n}
     function wdayJP(d){return["日","月","火","水","木","金","土"][d]}
     function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x}
-    function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x}
+    function startOfDay(d){const x=new Date(d); x.setHours(0,0,0,0); return x}
     function hm(d){return `${n2(d.getHours())}:${n2(d.getMinutes())}`}
     function fmtMDNoPad(d){return `${d.getMonth()+1}/${d.getDate()}`} // 9/1
-    function today0(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
+    function today0(){ return startOfDay(new Date()); }
 
     // <br>対応のtoast
     function toast(t){
-      const el=document.getElementById("toast");
-      if(t && (t.includes("<br") || t.includes("\n"))) el.innerHTML = String(t).replace(/\n/g,"<br>");
-      else el.textContent = t || "";
+      if (t && (t.includes("<br") || t.includes("\n"))) {
+        el.toast.innerHTML = String(t).replace(/\n/g,"<br>");
+      } else {
+        el.toast.textContent = t || "";
+      }
     }
-    function getName(){return (document.getElementById("name").value||"").trim();}
-    function div(cls){const d=document.createElement("div"); d.className=cls; return d;}
+
+    function getName(){return (el.name.value||"").trim();}
 
     // 表示ウィンドウの開始日（今日 or 今日+7）
     function windowStartDate(){
-      const base=today0();
-      return addDays(base, windowIndex*7);
+      return addDays(today0(), windowIndex*7);
     }
-    // 週バーの表示は “MM/DD 〜 MM/DD”（年なし・ゼロ埋めなし）
+
+    // 週バーの表示は “MM/DD 〜 MM/DD”
     function setWeekBar(){
       const ws = windowStartDate();
       const we = addDays(ws, 6);
-      document.getElementById("range").textContent = `${fmtMDNoPad(ws)} 〜 ${fmtMDNoPad(we)}`;
-      document.getElementById("prevWeek").disabled = (windowIndex<=WEEK_MIN);
-      document.getElementById("nextWeek").disabled = (windowIndex>=WEEK_MAX);
+      el.range.textContent = `${fmtMDNoPad(ws)} 〜 ${fmtMDNoPad(we)}`;
+      el.prev.disabled = (windowIndex<=WEEK_MIN);
+      el.next.disabled = (windowIndex>=WEEK_MAX);
     }
 
     // 両週のスロットを結合
-    function mergedSlots(){
-      return [...(slotsWeek0||[]), ...(slotsWeek1||[])];
-    }
+    function mergedSlots(){ return [...(slotsWeek0||[]), ...(slotsWeek1||[])]; }
 
+    // グリッド描画（innerHTML一括）
     function render(){
-      const grid=document.getElementById("grid"); grid.innerHTML="";
-
-      // 表示範囲: 今日〜今日+13日（固定）
       const rangeStart = today0();
       const rangeEnd   = addDays(rangeStart, 14);
+      const winStart   = windowStartDate();
 
-      // ウィンドウ: windowIndex*7 から 7日分
-      const winStart = windowStartDate();
       const days = [];
-      for(let i=0;i<7;i++){
+      for (let i=0;i<7;i++){
         const d = addDays(winStart, i);
-        if(d>=rangeStart && d<rangeEnd) days.push(d);
+        if (d>=rangeStart && d<rangeEnd) days.push(d);
       }
-      grid.style.gridTemplateColumns = `44px repeat(${days.length},1fr)`;
+      // ヘッダ＋セルのHTMLを一気に組み立て
+      const cols = days.length;
+      el.grid.style.gridTemplateColumns = `44px repeat(${cols},1fr)`;
 
-      // header: 曜日
-      grid.appendChild(div("cell th"));
-      days.forEach(d=>{
-        const c=div("cell th");
-        c.innerHTML=`<div class="dow">${wdayJP(d.getDay())}</div>`;
-        if(d.getDay()==0)c.classList.add("sun"); if(d.getDay()==6)c.classList.add("sat");
-        grid.appendChild(c);
-      });
+      // スロットをSetに（O(1)照合）
+      const slotSet = new Set();
+      for (const s of mergedSlots()){
+        const dt = new Date(s.startIso);
+        slotSet.add(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`);
+      }
+      const now = new Date(); now.setSeconds(0,0);
 
-      // header: 日付（9/1）
-      grid.appendChild(div("cell th"));
-      days.forEach(d=>{
-        const c=div("cell th");
-        c.innerHTML=`<div class="date">${fmtMDNoPad(d)}</div>`;
-        if(d.getDay()==0)c.classList.add("sun"); if(d.getDay()==6)c.classList.add("sat");
-        grid.appendChild(c);
-      });
+      let html = "";
 
-      // スロットマップ作成（両週をマージ）
-      const slotMap=new Map();
-      mergedSlots().forEach(s=>{
-        const dt=new Date(s.startIso);
-        slotMap.set(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`, s.startIso);
-      });
-      const now=new Date(); now.setSeconds(0,0);
+      // header: 曜日行
+      html += `<div class="cell th"></div>`;
+      for (const d of days){
+        const cls = d.getDay()===0 ? "cell th sun" : d.getDay()===6 ? "cell th sat" : "cell th";
+        html += `<div class="${cls}"><div class="dow">${wdayJP(d.getDay())}</div></div>`;
+      }
+
+      // header: 日付行
+      html += `<div class="cell th"></div>`;
+      for (const d of days){
+        const cls = d.getDay()===0 ? "cell th sun" : d.getDay()===6 ? "cell th sat" : "cell th";
+        html += `<div class="${cls}"><div class="date">${fmtMDNoPad(d)}</div></div>`;
+      }
 
       // 本体
-      TIMES.forEach(time=>{
-        const tcell=div("cell timecell"); tcell.textContent=time; grid.appendChild(tcell);
-        days.forEach(d=>{
-          const key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
-          const iso=slotMap.get(key);
-          const cell=div("cell");
-          if(iso && new Date(iso)>=now){
-            const btn=document.createElement("button");
-            btn.className="ok"; btn.type="button"; btn.dataset.iso=iso;
-            btn.innerHTML="<span class='ring'></span>";
-            btn.addEventListener("click",()=>{
-              document.querySelectorAll(".ok.selected").forEach(el=>el.classList.remove("selected"));
-              btn.classList.add("selected"); selectedIso=iso;
-              document.getElementById("calErr").style.display="none";
-              document.getElementById("calGroup").classList.remove("invalid");
-            });
-            cell.appendChild(btn);
-          }else{
-            const ng=div("ngbox"); ng.textContent="×"; cell.appendChild(ng);
+      for (const time of TIMES){
+        html += `<div class="cell timecell">${time}</div>`;
+        for (const d of days){
+          const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
+          if (slotSet.has(key)) {
+            // isoは後でクリック時に算出せず、key→isoの変換不要にするためdata-keyを持たせる
+            html += `<div class="cell"><button class="ok" type="button" data-key="${key}"><span class="ring"></span></button></div>`;
+          } else {
+            html += `<div class="cell"><div class="ngbox">×</div></div>`;
           }
-          grid.appendChild(cell);
-        });
-      });
+        }
+      }
+
+      el.grid.innerHTML = html;
+
+      // クリック時に過去時刻は弾く（選択リセット）
+      selectedIso = null;
+      el.calErr.style.display = "none";
+      el.calGroup.classList.remove("invalid");
+
+      // 過去セルの×は既に描画済み。念のため今時刻より前の○を非活性化
+      // （GAS側のスロットは厳密に「今以降」を返す設計だが、UI側も保険）
+      const btns = el.grid.querySelectorAll("button.ok");
+      const today = new Date();
+      for (const b of btns){
+        const k = b.getAttribute("data-key");
+        // 2025-9-2|17:30 のような形式→Date生成
+        const [ymd, hmStr] = k.split("|");
+        const [y,m,d] = ymd.split("-").map(Number);
+        const [hh,mi] = hmStr.split(":").map(Number);
+        const t = new Date(y, m-1, d, hh, mi, 0);
+        if (t < today) b.replaceWith(Object.assign(document.createElement("div"), {className:"ngbox", textContent:"×"}));
+      }
+
+      // 選択ハイライトはイベント委譲で処理
     }
 
-    // 両週データを取得
+    // イベント委譲（グリッド内の○ボタン選択）
+    el.grid.addEventListener("click", (e) => {
+      const btn = e.target.closest("button.ok");
+      if (!btn) return;
+
+      // 既存の選択解除
+      const prevSel = el.grid.querySelector(".ok.selected");
+      if (prevSel) prevSel.classList.remove("selected");
+
+      btn.classList.add("selected");
+
+      // data-key → ISOへ変換（ローカルタイムから）
+      const [ymd, hmStr] = btn.getAttribute("data-key").split("|");
+      const [y,m,d] = ymd.split("-").map(Number);
+      const [hh,mi] = hmStr.split(":").map(Number);
+      const dt = new Date(y, m-1, d, hh, mi, 0);
+      selectedIso = dt.toISOString();
+
+      el.calErr.style.display = "none";
+      el.calGroup.classList.remove("invalid");
+    });
+
+    // 両週データを取得（今走っているリクエストがあれば中断）
     async function fetchWeeks(){
       setWeekBar();
-      selectedIso=null;
-      document.getElementById("calErr").style.display="none";
-      document.getElementById("calGroup").classList.remove("invalid");
+      selectedIso = null;
+      el.calErr.style.display = "none";
+      el.calGroup.classList.remove("invalid");
 
-      const [r0, r1] = await Promise.all([
-        fetch(`${API_BASE}/available?week=0`).then(r=>r.json()).catch(()=>({slots:[]})),
-        fetch(`${API_BASE}/available?week=1`).then(r=>r.json()).catch(()=>({slots:[]})),
-      ]);
-      slotsWeek0 = r0.slots||[];
-      slotsWeek1 = r1.slots||[];
-      render();
+      if (inFlightController) inFlightController.abort();
+      inFlightController = new AbortController();
+      const { signal } = inFlightController;
+
+      try{
+        const [r0, r1] = await Promise.all([
+          fetch(`${API_BASE}/available?week=0`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
+          fetch(`${API_BASE}/available?week=1`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
+        ]);
+        if (signal.aborted) return;
+
+        slotsWeek0 = r0.slots || [];
+        slotsWeek1 = r1.slots || [];
+
+        // レンダリングはまとめて一度だけ
+        render();
+      }catch(err){
+        if (err.name !== "AbortError") {
+          console.error(err);
+          toast("空き枠の取得に失敗しました。");
+        }
+      } finally {
+        inFlightController = null;
+      }
     }
 
     // ナビ
-    document.getElementById("prevWeek").onclick=()=>{ if(windowIndex>WEEK_MIN){ windowIndex--; fetchWeeks(); } };
-    document.getElementById("nextWeek").onclick=()=>{ if(windowIndex<WEEK_MAX){ windowIndex++; fetchWeeks(); } };
+    el.prev.onclick = () => { if(windowIndex>WEEK_MIN){ windowIndex--; fetchWeeks(); } };
+    el.next.onclick = () => { if(windowIndex<WEEK_MAX){ windowIndex++; fetchWeeks(); } };
 
     // 予約
-    document.getElementById("confirmBtn").onclick=async()=>{
-      const btn=document.getElementById("confirmBtn");
-      let bad=false; const name=getName();
+    el.confirm.onclick = async () => {
+      let bad = false;
+      const name = getName();
 
-      if(!name){
-        document.getElementById("name").classList.add("error");
-        document.getElementById("nameErr").style.display="block";
-        bad=true;
-      }else{
-        document.getElementById("name").classList.remove("error");
-        document.getElementById("nameErr").style.display="none";
+      if (!name) {
+        el.name.classList.add("error");
+        el.nameErr.style.display = "block";
+        bad = true;
+      } else {
+        el.name.classList.remove("error");
+        el.nameErr.style.display = "none";
       }
-      if(!selectedIso){
-        document.getElementById("calErr").style.display="block";
-        document.getElementById("calGroup").classList.add("invalid");
-        bad=true;
-      }else{
-        document.getElementById("calErr").style.display="none";
-        document.getElementById("calGroup").classList.remove("invalid");
+      if (!selectedIso) {
+        el.calErr.style.display = "block";
+        el.calGroup.classList.add("invalid");
+        bad = true;
+      } else {
+        el.calErr.style.display = "none";
+        el.calGroup.classList.remove("invalid");
       }
-      if(bad) return;
+      if (bad) return;
 
-      const originalText=btn.textContent;
-      btn.textContent="送信中...";
-      btn.disabled=true;
+      const originalText = el.confirm.textContent;
+      el.confirm.textContent = "送信中...";
+      el.confirm.disabled = true;
 
       try{
-        const res=await fetch(`${API_BASE}/book`,{
+        const res = await fetch(`${API_BASE}/book`,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({action:"book",startIso:selectedIso,name,lineUserId})
         });
-        const j=await res.json();
+        const j = await res.json();
 
-        if(j.ok){
+        if (j.ok){
           toast("予約を受け付けました。LINEに確認メッセージを送ります。");
           await fetchWeeks();
-          if(liff.isInClient&&liff.isInClient()) setTimeout(()=>liff.closeWindow(),600);
-        }else{
-          if(j.error==='already_booked'){
-            toast("無料相談はお１人様１回までです。<br>再度ご予約をご希望の場合はお問い合わせください。");
-          }else{
-            toast("その枠は埋まっています。");
-          }
+          if (liff.isInClient && liff.isInClient()) setTimeout(()=>liff.closeWindow(),600);
+        } else {
+          toast(j.error==='already_booked'
+            ? "無料相談はお１人様１回までです。<br>再度ご予約をご希望の場合はお問い合わせください。"
+            : "その枠は埋まっています。");
           await fetchWeeks();
         }
       }catch(e){
         console.error(e);
         toast("通信エラー");
       }finally{
-        btn.textContent=originalText;
-        btn.disabled=false;
+        el.confirm.textContent = originalText;
+        el.confirm.disabled = false;
       }
     };
 
     // 初期ロード
-    fetchWeeks().catch(e=>{ console.error(e); toast("空き枠の取得に失敗しました。"); });
+    fetchWeeks();
 
     // LIFFプロフィールで氏名初期化
     (async()=>{try{
       await liff.init({liffId:LIFF_ID});
       if(!liff.isLoggedIn()){ liff.login(); return; }
-      const prof=await liff.getProfile();
-      document.getElementById("name").value=prof.displayName||"";
-      lineUserId=prof.userId||null;
+      const prof = await liff.getProfile();
+      el.name.value = prof.displayName || "";
+      lineUserId = prof.userId || null;
     }catch(e){ /* no-op */ }})();
   })();
   </script>
