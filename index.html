@@ -8,6 +8,8 @@
     :root{
       --brand:#1a2e44; --muted:#667085;
       --sat-fg:#2563eb; --sun-fg:#ef4444; --holi-fg:#ef4444;
+      --sat-bg:rgba(37,99,235,.06);     /* 土の列の薄い青 */
+      --sunholi-bg:rgba(239,68,68,.06); /* 日・祝の列の薄い赤 */
       --error:#ef4444; --maxw:860px;
     }
     body{margin:0;font-family:system-ui,"Noto Sans JP",sans-serif;background:#fafafa;line-height:2}
@@ -44,10 +46,9 @@
     .cal{border:1px solid #ddd;border-top:0;border-bottom-left-radius:10px;border-bottom-right-radius:10px;overflow:hidden;margin:0}
     .grid{
       display:grid;grid-template-columns:44px repeat(7,1fr);
-      content-visibility:auto; /* 大量セルの描画負荷を軽減 */
+      content-visibility:auto;
     }
     .cell{border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center;height:40px}
-    /* 見出し行だけ高さを低く（“曜日”と“日付”） */
     .cell.th{height:30px}
     .th{background:#f5f7fa;font-weight:700}
     .dow{font-size:11px}
@@ -57,7 +58,12 @@
     .holiday .dow,.holiday .date{color:var(--holi-fg)}
     .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
-    /* ○ボタン（見た目は同じ、イベントは委譲で拾う） */
+    /* 列全体の背景色（ヘッダ以外にも適用） */
+    .col-sat   { background:var(--sat-bg); }
+    .col-sun   { background:var(--sunholi-bg); }
+    .col-holiday{ background:var(--sunholi-bg); }
+
+    /* ○ボタン */
     .ok{cursor:pointer;border:0;background:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
     .ok .ring{width:16px;height:16px;border:3px solid var(--brand);border-radius:999px;transition:background .12s ease}
     .ok.selected .ring{background:var(--brand)}
@@ -72,7 +78,6 @@
     }
     #confirmBtn[disabled]{opacity:.7;cursor:not-allowed}
 
-    /* トースト（<br>対応のため pre-line） */
     .help{font-size:12px;color:#667085;margin-top:6px;white-space:pre-line}
   </style>
 </head>
@@ -118,7 +123,6 @@
     const LIFF_ID  = "2007979122-nWPjgJGA";
     const API_BASE = `${location.origin}/api`;
 
-    // DOMキャッシュ
     const el = {
       name: document.getElementById("name"),
       nameErr: document.getElementById("nameErr"),
@@ -132,14 +136,13 @@
       confirm: document.getElementById("confirmBtn")
     };
 
-    // 表示は「今日から7日」「+7日」で次の7日（最大2週間）
     const WEEK_MIN = 0, WEEK_MAX = 1;
-    let windowIndex = 0; // 0: 今日→6日後, 1: 今日+7→今日+13
+    let windowIndex = 0;
 
     let lineUserId = null, selectedIso = null;
-    let slotsWeek0 = [], slotsWeek1 = []; // GASの週単位を両方保持
-    let holiWeek0 = new Set(), holiWeek1 = new Set(); // 祝日キー保持（yyyy-M-d）
-    let inFlightController = null;        // fetchキャンセル用
+    let slotsWeek0 = [], slotsWeek1 = [];
+    let holiWeek0 = new Set(), holiWeek1 = new Set();
+    let inFlightController = null;
 
     // 時間枠: 8:00〜21:00（30分刻み）
     const TIMES = (() => {
@@ -157,11 +160,10 @@
     function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x}
     function startOfDay(d){const x=new Date(d); x.setHours(0,0,0,0); return x}
     function hm(d){return `${n2(d.getHours())}:${n2(d.getMinutes())}`}
-    function fmtMDNoPad(d){return `${d.getMonth()+1}/${d.getDate()}`} // 9/1
+    function fmtMDNoPad(d){return `${d.getMonth()+1}/${d.getDate()}`}
     function today0(){ return startOfDay(new Date()); }
     function ymdKey(d){ return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 
-    // <br>対応のtoast
     function toast(t){
       if (t && (t.includes("<br") || t.includes("\n"))) {
         el.toast.innerHTML = String(t).replace(/\n/g,"<br>");
@@ -170,14 +172,8 @@
       }
     }
 
-    function getName(){return (el.name.value||"").trim();}
+    function windowStartDate(){ return addDays(today0(), windowIndex*7); }
 
-    // 表示ウィンドウの開始日（今日 or 今日+7）
-    function windowStartDate(){
-      return addDays(today0(), windowIndex*7);
-    }
-
-    // 週バーの表示は “MM/DD 〜 MM/DD”
     function setWeekBar(){
       const ws = windowStartDate();
       const we = addDays(ws, 6);
@@ -186,16 +182,12 @@
       el.next.disabled = (windowIndex>=WEEK_MAX);
     }
 
-    // 両週のスロットを結合
     function mergedSlots(){ return [...(slotsWeek0||[]), ...(slotsWeek1||[])]; }
-
-    // 指定日が祝日か？
     function isHoliday(d){
       const key = ymdKey(d);
       return (windowIndex===0 ? holiWeek0.has(key) : holiWeek1.has(key));
     }
 
-    // グリッド描画（innerHTML一括）
     function render(){
       const rangeStart = today0();
       const rangeEnd   = addDays(rangeStart, 14);
@@ -206,11 +198,9 @@
         const d = addDays(winStart, i);
         if (d>=rangeStart && d<rangeEnd) days.push(d);
       }
-      // ヘッダ＋セルのHTMLを一気に組み立て
       const cols = days.length;
       el.grid.style.gridTemplateColumns = `44px repeat(${cols},1fr)`;
 
-      // スロットをSetに（O(1)照合）
       const slotSet = new Set();
       for (const s of mergedSlots()){
         const dt = new Date(s.startIso);
@@ -225,7 +215,6 @@
         let cls = "cell th";
         if (d.getDay()===0) cls += " sun";
         else if (d.getDay()===6) cls += " sat";
-        // 祝日は赤（※日曜も赤なので sun クラスとの重複は気にしない）
         if (isHoliday(d)) cls += " holiday";
         html += `<div class="${cls}"><div class="dow">${wdayJP(d.getDay())}</div></div>`;
       }
@@ -240,27 +229,32 @@
         html += `<div class="${cls}"><div class="date">${fmtMDNoPad(d)}</div></div>`;
       }
 
-      // 本体
+      // 本体（列全体に背景色を付与）
       for (const time of TIMES){
         html += `<div class="cell timecell">${time}</div>`;
         for (const d of days){
+          let colCls = "";
+          if (d.getDay()===0) colCls = "col-sun";
+          else if (d.getDay()===6) colCls = "col-sat";
+          if (isHoliday(d)) colCls = "col-holiday"; // 祝日は赤優先
+
           const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
           if (slotSet.has(key)) {
-            html += `<div class="cell"><button class="ok" type="button" data-key="${key}"><span class="ring"></span></button></div>`;
+            html += `<div class="cell ${colCls}"><button class="ok" type="button" data-key="${key}"><span class="ring"></span></button></div>`;
           } else {
-            html += `<div class="cell"><div class="ngbox">×</div></div>`;
+            html += `<div class="cell ${colCls}"><div class="ngbox">×</div></div>`;
           }
         }
       }
 
       el.grid.innerHTML = html;
 
-      // クリック時に過去時刻は弾く（選択リセット）
+      // 選択状態の初期化
       selectedIso = null;
       el.calErr.style.display = "none";
       el.calGroup.classList.remove("invalid");
 
-      // 念のため今時刻より前の○を非活性化（GASでも弾いているがUI側の保険）
+      // 念のため今時刻より前の○を非活性化
       const btns = el.grid.querySelectorAll("button.ok");
       const now = new Date(); now.setSeconds(0,0);
       for (const b of btns){
@@ -273,14 +267,12 @@
       }
     }
 
-    // イベント委譲（グリッド内の○ボタン選択）
+    // イベント委譲（○選択）
     el.grid.addEventListener("click", (e) => {
       const btn = e.target.closest("button.ok");
       if (!btn) return;
-
       const prevSel = el.grid.querySelector(".ok.selected");
       if (prevSel) prevSel.classList.remove("selected");
-
       btn.classList.add("selected");
 
       const [ymd, hmStr] = btn.getAttribute("data-key").split("|");
@@ -293,7 +285,6 @@
       el.calGroup.classList.remove("invalid");
     });
 
-    // 両週データを取得
     async function fetchWeeks(){
       setWeekBar();
       selectedIso = null;
@@ -330,11 +321,9 @@
       }
     }
 
-    // ナビ
     el.prev.onclick = () => { if(windowIndex>WEEK_MIN){ windowIndex--; fetchWeeks(); } };
     el.next.onclick = () => { if(windowIndex<WEEK_MAX){ windowIndex++; fetchWeeks(); } };
 
-    // 予約
     el.confirm.onclick = async () => {
       let bad = false;
       const name = (el.name.value||"").trim();
