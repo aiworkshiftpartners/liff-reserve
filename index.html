@@ -53,6 +53,7 @@
     .col-sat     { background:var(--sat-bg); }
     .col-sun     { background:var(--sunholi-bg); }
     .col-holiday { background:var(--sunholi-bg); }
+    /* ヘッダーのデフォ背景を上書き（強制） */
     .th.col-sat{background:var(--sat-bg) !important;}
     .th.col-sun{background:var(--sunholi-bg) !important;}
     .th.col-holiday{background:var(--sunholi-bg) !important;}
@@ -109,8 +110,8 @@
   <script>
   (function(){
     const LIFF_ID  = "2007979122-nWPjgJGA";
-    // ★ Apps Script標準のクエリ分岐に統一（/api などのプロキシ不要）
-    const API_BASE = location.origin;
+    // ★ あなたの元の構成に戻します（/api/... で叩く）
+    const API_BASE = `${location.origin}/api`;
 
     const el = {
       name: document.getElementById("name"),
@@ -195,12 +196,17 @@
       html += `<div class="cell th"></div>`;
       for (const d of days){
         let cls = "cell th";
+        // 文字色
         if (d.getDay()===0) cls += " sun";
         else if (d.getDay()===6) cls += " sat";
         if (isHoliday(d)) cls += " holiday";
+        // 背景（列色をヘッダーにも）
         if (d.getDay()===0) cls += " col-sun";
         else if (d.getDay()===6) cls += " col-sat";
-        if (isHoliday(d)) { cls = cls.replace(/col-sat/g,''); if (!/col-holiday/.test(cls)) cls += " col-holiday"; }
+        if (isHoliday(d)) { // 祝日優先＝赤
+          cls = cls.replace(/col-sat/g,'');
+          if (!/col-holiday/.test(cls)) cls += " col-holiday";
+        }
         html += `<div class="${cls}"><div class="dow">${wdayJP(d.getDay())}</div></div>`;
       }
 
@@ -213,7 +219,10 @@
         if (isHoliday(d)) cls += " holiday";
         if (d.getDay()===0) cls += " col-sun";
         else if (d.getDay()===6) cls += " col-sat";
-        if (isHoliday(d)) { cls = cls.replace(/col-sat/g,''); if (!/col-holiday/.test(cls)) cls += " col-holiday"; }
+        if (isHoliday(d)) {
+          cls = cls.replace(/col-sat/g,'');
+          if (!/col-holiday/.test(cls)) cls += " col-holiday";
+        }
         html += `<div class="${cls}"><div class="date">${fmtMDNoPad(d)}</div></div>`;
       }
 
@@ -285,15 +294,16 @@
 
       try{
         const [r0, r1, h0, h1] = await Promise.all([
-          fetch(`${API_BASE}/?path=available&week=0`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
-          fetch(`${API_BASE}/?path=available&week=1`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
-          fetch(`${API_BASE}/?path=holidays&week=0`,  { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({holidays:[]})),
-          fetch(`${API_BASE}/?path=holidays&week=1`,  { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({holidays:[]})),
+          fetch(`${API_BASE}/available?week=0`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
+          fetch(`${API_BASE}/available?week=1`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
+          fetch(`${API_BASE}/holidays?week=0`,  { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({holidays:[]})),
+          fetch(`${API_BASE}/holidays?week=1`,  { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({holidays:[]})),
         ]);
         if (signal.aborted) return;
 
         slotsWeek0 = r0.slots || [];
         slotsWeek1 = r1.slots || [];
+
         holiWeek0 = new Set(h0.holidays || []);
         holiWeek1 = new Set(h1.holidays || []);
 
@@ -311,6 +321,7 @@
     el.prev.onclick = () => { if(windowIndex>WEEK_MIN){ windowIndex--; fetchWeeks(); } };
     el.next.onclick = () => { if(windowIndex<WEEK_MAX){ windowIndex++; fetchWeeks(); } };
 
+    // 予約
     el.confirm.onclick = async () => {
       let bad = false;
       const name = (el.name.value||"").trim();
@@ -326,7 +337,7 @@
       el.confirm.disabled = true;
 
       try{
-        const res = await fetch(`${API_BASE}/?path=book`,{
+        const res = await fetch(`${API_BASE}/book`,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({action:"book",startIso:selectedIso,name,lineUserId})
