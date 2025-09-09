@@ -231,7 +231,6 @@
         for (const d of days){
           const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
           if (slotSet.has(key)) {
-            // isoは後でクリック時に算出せず、key→isoの変換不要にするためdata-keyを持たせる
             html += `<div class="cell"><button class="ok" type="button" data-key="${key}"><span class="ring"></span></button></div>`;
           } else {
             html += `<div class="cell"><div class="ngbox">×</div></div>`;
@@ -246,21 +245,17 @@
       el.calErr.style.display = "none";
       el.calGroup.classList.remove("invalid");
 
-      // 過去セルの×は既に描画済み。念のため今時刻より前の○を非活性化
-      // （GAS側のスロットは厳密に「今以降」を返す設計だが、UI側も保険）
+      // 念のため今時刻より前の○を非活性化（GASでも弾いているがUI側の保険）
       const btns = el.grid.querySelectorAll("button.ok");
       const today = new Date();
       for (const b of btns){
         const k = b.getAttribute("data-key");
-        // 2025-9-2|17:30 のような形式→Date生成
         const [ymd, hmStr] = k.split("|");
         const [y,m,d] = ymd.split("-").map(Number);
         const [hh,mi] = hmStr.split(":").map(Number);
         const t = new Date(y, m-1, d, hh, mi, 0);
         if (t < today) b.replaceWith(Object.assign(document.createElement("div"), {className:"ngbox", textContent:"×"}));
       }
-
-      // 選択ハイライトはイベント委譲で処理
     }
 
     // イベント委譲（グリッド内の○ボタン選択）
@@ -268,13 +263,11 @@
       const btn = e.target.closest("button.ok");
       if (!btn) return;
 
-      // 既存の選択解除
       const prevSel = el.grid.querySelector(".ok.selected");
       if (prevSel) prevSel.classList.remove("selected");
 
       btn.classList.add("selected");
 
-      // data-key → ISOへ変換（ローカルタイムから）
       const [ymd, hmStr] = btn.getAttribute("data-key").split("|");
       const [y,m,d] = ymd.split("-").map(Number);
       const [hh,mi] = hmStr.split(":").map(Number);
@@ -285,7 +278,7 @@
       el.calGroup.classList.remove("invalid");
     });
 
-    // 両週データを取得（今走っているリクエストがあれば中断）
+    // 両週データを取得
     async function fetchWeeks(){
       setWeekBar();
       selectedIso = null;
@@ -306,7 +299,6 @@
         slotsWeek0 = r0.slots || [];
         slotsWeek1 = r1.slots || [];
 
-        // レンダリングはまとめて一度だけ
         render();
       }catch(err){
         if (err.name !== "AbortError") {
@@ -325,7 +317,7 @@
     // 予約
     el.confirm.onclick = async () => {
       let bad = false;
-      const name = getName();
+      const name = (el.name.value||"").trim();
 
       if (!name) {
         el.name.classList.add("error");
