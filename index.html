@@ -58,10 +58,14 @@
     .holiday .dow,.holiday .date{color:var(--holi-fg)}
     .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
-    /* 列全体の背景色（ヘッダ以外にも適用） */
-    .col-sat   { background:var(--sat-bg); }
-    .col-sun   { background:var(--sunholi-bg); }
-    .col-holiday{ background:var(--sunholi-bg); }
+    /* 列全体の背景色（本文＋ヘッダーまで） */
+    .col-sat     { background:var(--sat-bg); }
+    .col-sun     { background:var(--sunholi-bg); }
+    .col-holiday { background:var(--sunholi-bg); }
+    /* ヘッダーのデフォ背景を上書き（強制） */
+    .th.col-sat{background:var(--sat-bg) !important;}
+    .th.col-sun{background:var(--sunholi-bg) !important;}
+    .th.col-holiday{background:var(--sunholi-bg) !important;}
 
     /* ○ボタン */
     .ok{cursor:pointer;border:0;background:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
@@ -73,7 +77,7 @@
 
     /* 予約ボタン */
     #confirmBtn{
-      width:100%;margin-top:14px;padding:14px;background:var(--brand);color:#fff;border:none;border-radius:8px;
+      width:100%;margin-top:14px;padding:14px;background:#1a2e44;color:#fff;border:none;border-radius:8px;
       font-weight:800;cursor:pointer;font-size:17px;position:relative;
     }
     #confirmBtn[disabled]{opacity:.7;cursor:not-allowed}
@@ -141,10 +145,10 @@
 
     let lineUserId = null, selectedIso = null;
     let slotsWeek0 = [], slotsWeek1 = [];
-    let holiWeek0 = new Set(), holiWeek1 = new Set();
+    let holiWeek0 = new Set(), holiWeek1 = new Set(); // 'yyyy-M-d'
     let inFlightController = null;
 
-    // 時間枠: 8:00〜21:00（30分刻み）
+    // 時間枠: 8:00〜21:30（30分刻み）
     const TIMES = (() => {
       const arr = [];
       for (let h = 8; h <= 21; h++) {
@@ -165,15 +169,11 @@
     function ymdKey(d){ return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 
     function toast(t){
-      if (t && (t.includes("<br") || t.includes("\n"))) {
-        el.toast.innerHTML = String(t).replace(/\n/g,"<br>");
-      } else {
-        el.toast.textContent = t || "";
-      }
+      if (t && (t.includes("<br") || t.includes("\n"))) el.toast.innerHTML = String(t).replace(/\n/g,"<br>");
+      else el.toast.textContent = t || "";
     }
 
     function windowStartDate(){ return addDays(today0(), windowIndex*7); }
-
     function setWeekBar(){
       const ws = windowStartDate();
       const we = addDays(ws, 6);
@@ -183,10 +183,7 @@
     }
 
     function mergedSlots(){ return [...(slotsWeek0||[]), ...(slotsWeek1||[])]; }
-    function isHoliday(d){
-      const key = ymdKey(d);
-      return (windowIndex===0 ? holiWeek0.has(key) : holiWeek1.has(key));
-    }
+    function isHoliday(d){ const key = ymdKey(d); return (windowIndex===0 ? holiWeek0.has(key) : holiWeek1.has(key)); }
 
     function render(){
       const rangeStart = today0();
@@ -213,9 +210,17 @@
       html += `<div class="cell th"></div>`;
       for (const d of days){
         let cls = "cell th";
+        // 文字色
         if (d.getDay()===0) cls += " sun";
         else if (d.getDay()===6) cls += " sat";
         if (isHoliday(d)) cls += " holiday";
+        // 背景（列色をヘッダーにも）
+        if (d.getDay()===0) cls += " col-sun";
+        else if (d.getDay()===6) cls += " col-sat";
+        if (isHoliday(d)) { // 祝日優先＝赤
+          cls = cls.replace(/col-sat/g,'');
+          if (!/col-holiday/.test(cls)) cls += " col-holiday";
+        }
         html += `<div class="${cls}"><div class="dow">${wdayJP(d.getDay())}</div></div>`;
       }
 
@@ -226,17 +231,23 @@
         if (d.getDay()===0) cls += " sun";
         else if (d.getDay()===6) cls += " sat";
         if (isHoliday(d)) cls += " holiday";
+        if (d.getDay()===0) cls += " col-sun";
+        else if (d.getDay()===6) cls += " col-sat";
+        if (isHoliday(d)) {
+          cls = cls.replace(/col-sat/g,'');
+          if (!/col-holiday/.test(cls)) cls += " col-holiday";
+        }
         html += `<div class="${cls}"><div class="date">${fmtMDNoPad(d)}</div></div>`;
       }
 
-      // 本体（列全体に背景色を付与）
+      // 本体：列全体に背景適用
       for (const time of TIMES){
         html += `<div class="cell timecell">${time}</div>`;
         for (const d of days){
           let colCls = "";
           if (d.getDay()===0) colCls = "col-sun";
           else if (d.getDay()===6) colCls = "col-sat";
-          if (isHoliday(d)) colCls = "col-holiday"; // 祝日は赤優先
+          if (isHoliday(d)) colCls = "col-holiday"; // 祝日優先＝赤
 
           const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}|${time}`;
           if (slotSet.has(key)) {
@@ -249,12 +260,12 @@
 
       el.grid.innerHTML = html;
 
-      // 選択状態の初期化
+      // 初期化
       selectedIso = null;
       el.calErr.style.display = "none";
       el.calGroup.classList.remove("invalid");
 
-      // 念のため今時刻より前の○を非活性化
+      // 念のため今より前の○は×に置換
       const btns = el.grid.querySelectorAll("button.ok");
       const now = new Date(); now.setSeconds(0,0);
       for (const b of btns){
@@ -267,7 +278,7 @@
       }
     }
 
-    // イベント委譲（○選択）
+    // クリック選択
     el.grid.addEventListener("click", (e) => {
       const btn = e.target.closest("button.ok");
       if (!btn) return;
@@ -306,7 +317,6 @@
 
         slotsWeek0 = r0.slots || [];
         slotsWeek1 = r1.slots || [];
-
         holiWeek0 = new Set(h0.holidays || []);
         holiWeek1 = new Set(h1.holidays || []);
 
@@ -328,22 +338,10 @@
       let bad = false;
       const name = (el.name.value||"").trim();
 
-      if (!name) {
-        el.name.classList.add("error");
-        el.nameErr.style.display = "block";
-        bad = true;
-      } else {
-        el.name.classList.remove("error");
-        el.nameErr.style.display = "none";
-      }
-      if (!selectedIso) {
-        el.calErr.style.display = "block";
-        el.calGroup.classList.add("invalid");
-        bad = true;
-      } else {
-        el.calErr.style.display = "none";
-        el.calGroup.classList.remove("invalid");
-      }
+      if (!name) { el.name.classList.add("error"); el.nameErr.style.display = "block"; bad = true; }
+      else { el.name.classList.remove("error"); el.nameErr.style.display = "none"; }
+      if (!selectedIso) { el.calErr.style.display = "block"; el.calGroup.classList.add("invalid"); bad = true; }
+      else { el.calErr.style.display = "none"; el.calGroup.classList.remove("invalid"); }
       if (bad) return;
 
       const originalText = el.confirm.textContent;
