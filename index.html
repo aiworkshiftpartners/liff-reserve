@@ -7,7 +7,7 @@
   <style>
     :root{
       --brand:#1a2e44; --muted:#667085;
-      --sat-fg:#2563eb; --sun-fg:#ef4444;
+      --sat-fg:#2563eb; --sun-fg:#ef4444; --holi-fg:#ef4444;
       --error:#ef4444; --maxw:860px;
     }
     body{margin:0;font-family:system-ui,"Noto Sans JP",sans-serif;background:#fafafa;line-height:2}
@@ -54,6 +54,7 @@
     .date{font-size:12px}
     .sat .dow,.sat .date{color:var(--sat-fg)}
     .sun .dow,.sun .date{color:var(--sun-fg)}
+    .holiday .dow,.holiday .date{color:var(--holi-fg)}
     .timecell{background:#fafafa;font-size:12px;font-weight:700}
 
     /* ○ボタン（見た目は同じ、イベントは委譲で拾う） */
@@ -137,6 +138,7 @@
 
     let lineUserId = null, selectedIso = null;
     let slotsWeek0 = [], slotsWeek1 = []; // GASの週単位を両方保持
+    let holiWeek0 = new Set(), holiWeek1 = new Set(); // 祝日キー保持（yyyy-M-d）
     let inFlightController = null;        // fetchキャンセル用
 
     // 時間枠: 8:00〜21:00（30分刻み）
@@ -157,6 +159,7 @@
     function hm(d){return `${n2(d.getHours())}:${n2(d.getMinutes())}`}
     function fmtMDNoPad(d){return `${d.getMonth()+1}/${d.getDate()}`} // 9/1
     function today0(){ return startOfDay(new Date()); }
+    function ymdKey(d){ return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 
     // <br>対応のtoast
     function toast(t){
@@ -186,6 +189,12 @@
     // 両週のスロットを結合
     function mergedSlots(){ return [...(slotsWeek0||[]), ...(slotsWeek1||[])]; }
 
+    // 指定日が祝日か？
+    function isHoliday(d){
+      const key = ymdKey(d);
+      return (windowIndex===0 ? holiWeek0.has(key) : holiWeek1.has(key));
+    }
+
     // グリッド描画（innerHTML一括）
     function render(){
       const rangeStart = today0();
@@ -207,21 +216,27 @@
         const dt = new Date(s.startIso);
         slotSet.add(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}|${hm(dt)}`);
       }
-      const now = new Date(); now.setSeconds(0,0);
 
       let html = "";
 
       // header: 曜日行
       html += `<div class="cell th"></div>`;
       for (const d of days){
-        const cls = d.getDay()===0 ? "cell th sun" : d.getDay()===6 ? "cell th sat" : "cell th";
+        let cls = "cell th";
+        if (d.getDay()===0) cls += " sun";
+        else if (d.getDay()===6) cls += " sat";
+        // 祝日は赤（※日曜も赤なので sun クラスとの重複は気にしない）
+        if (isHoliday(d)) cls += " holiday";
         html += `<div class="${cls}"><div class="dow">${wdayJP(d.getDay())}</div></div>`;
       }
 
       // header: 日付行
       html += `<div class="cell th"></div>`;
       for (const d of days){
-        const cls = d.getDay()===0 ? "cell th sun" : d.getDay()===6 ? "cell th sat" : "cell th";
+        let cls = "cell th";
+        if (d.getDay()===0) cls += " sun";
+        else if (d.getDay()===6) cls += " sat";
+        if (isHoliday(d)) cls += " holiday";
         html += `<div class="${cls}"><div class="date">${fmtMDNoPad(d)}</div></div>`;
       }
 
@@ -247,14 +262,14 @@
 
       // 念のため今時刻より前の○を非活性化（GASでも弾いているがUI側の保険）
       const btns = el.grid.querySelectorAll("button.ok");
-      const today = new Date();
+      const now = new Date(); now.setSeconds(0,0);
       for (const b of btns){
         const k = b.getAttribute("data-key");
         const [ymd, hmStr] = k.split("|");
         const [y,m,d] = ymd.split("-").map(Number);
         const [hh,mi] = hmStr.split(":").map(Number);
         const t = new Date(y, m-1, d, hh, mi, 0);
-        if (t < today) b.replaceWith(Object.assign(document.createElement("div"), {className:"ngbox", textContent:"×"}));
+        if (t < now) b.replaceWith(Object.assign(document.createElement("div"), {className:"ngbox", textContent:"×"}));
       }
     }
 
@@ -290,14 +305,19 @@
       const { signal } = inFlightController;
 
       try{
-        const [r0, r1] = await Promise.all([
+        const [r0, r1, h0, h1] = await Promise.all([
           fetch(`${API_BASE}/available?week=0`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
           fetch(`${API_BASE}/available?week=1`, { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({slots:[]})),
+          fetch(`${API_BASE}/holidays?week=0`,  { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({holidays:[]})),
+          fetch(`${API_BASE}/holidays?week=1`,  { signal, cache: "no-store" }).then(r=>r.json()).catch(()=>({holidays:[]})),
         ]);
         if (signal.aborted) return;
 
         slotsWeek0 = r0.slots || [];
         slotsWeek1 = r1.slots || [];
+
+        holiWeek0 = new Set(h0.holidays || []);
+        holiWeek1 = new Set(h1.holidays || []);
 
         render();
       }catch(err){
